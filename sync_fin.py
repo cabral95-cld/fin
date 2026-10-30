@@ -12,7 +12,7 @@ Primeira linha impressa:
   CHANGED | …     PAINEL_NOVO.html gerado → testar e publicar
   FALHOU: …       estrutura inesperada → não publicar
 
-Fontes: despesas = aba "7. Base de Dados" (Classificação Correta / Sub Classificação (Correta));
+Fontes: despesas = aba "7. Base de Dados" (Classificação / Sub Classificação, revisadas em 30/10/2026);
 VGV = abas 1, 2, 4, 5 e 6. Nenhum número é estimado: o que não existe na planilha fica vazio.
 """
 import sys, re, json, html, datetime, collections, unicodedata, statistics, argparse
@@ -172,7 +172,7 @@ def parse(xlsx, data_txt, hoje=None):
             raise Falha(f"aba ausente: {n!r}")
     ws = wb["7. Base de Dados"]
     h = header_map(ws)
-    C = dict(comp=col(h, "Comp."), cl=col(h, "Classificação Correta"), sb=col(h, "Sub Classificação (Correta)"),
+    C = dict(comp=col(h, "Comp."), cl=col(h, "Classificação Correta", "Classificação"), sb=col(h, "Sub Classificação (Correta)", "Sub Classificação"),
              vb=col(h, "Verba"), fo=col(h, "Fornecedor"), ds=col(h, "Descritivo"), ccf=col(h, "CC Fat."),
              ccd=col(h, "CC Dest."), classe=col(h, "Classe Despesa"), v=col(h, "Valor (R$)"), si=col(h, "Nº Sienge"))
     clc, sbc, vbv, ccv, fxv = Canon(NEAR), Canon(NEAR), collections.Counter(), collections.Counter(), collections.Counter()
@@ -338,7 +338,7 @@ def parse(xlsx, data_txt, hoje=None):
     sem = [x for x in recs if x["cl"] == SEM_CL]
     if sem:
         sv = sum(x.get("v", 0) for x in sem)
-        Q("A", "Lançamentos sem Classificação Correta", f"{len(sem)} lançamento{'s' if len(sem)>1 else ''} ({brl(sv)}) sem Classificação Correta nem Sub Classificação (Correta) na aba 7 (linhas {', '.join(str(x['row']) for x in sem)}). No painel aparecem como “{SEM_CL}”.", "Preencher as duas colunas nessas linhas.")
+        Q("A", "Lançamentos sem classificação", f"{len(sem)} lançamento{'s' if len(sem)>1 else ''} ({brl(sv)}) sem Classificação nem Sub Classificação na aba 7 (linhas {', '.join(str(x['row']) for x in sem)}). No painel aparecem como “{SEM_CL}”.", "Preencher as duas colunas nessas linhas.")
     nolaunch = [i for i in range(12) if i + 1 <= CUR and base_m[i] > 0 and not vgv_ok[i]]
     if nolaunch:
         partes = [f"{MESL[i]} ({brl(vgv26[i])})" if vgv26[i] else f"{MESL[i]} (vazio)" for i in nolaunch]
@@ -405,7 +405,7 @@ def parse(xlsx, data_txt, hoje=None):
     if a6_typed:
         Q("O", "Verba por empreendimento digitada", f"Verba e utilizado da aba 6 são valores digitados ({a6_typed} linhas sem fórmula no utilizado), sem ligação com a base, e o período de acumulação não está declarado.", "Registrar na aba o período e a fonte do utilizado.")
     var = []
-    for nome, cz in (("Classificação Correta", clc), ("Sub Classificação (Correta)", sbc)):
+    for nome, cz in (("Classificação", clc), ("Sub Classificação", sbc)):
         vv = cz.variants()
         if vv:
             var.append(f"{nome}: " + "; ".join(f"{k} ({' / '.join('“'+s+'”' for s in v)})" for k, v in sorted(vv.items())))
@@ -414,6 +414,22 @@ def parse(xlsx, data_txt, hoje=None):
         var.append("Verba digitada como " + ", ".join(f"“{k}”" for k in sorted(vbx)))
     if var:
         Q("O", "Grafias unificadas no painel", ". ".join(var) + ".", "Usar lista suspensa (validação de dados) nessas colunas.")
+    # coerência da taxonomia (só aponta; nada é reclassificado no painel)
+    labs = {x["cl"] for x in recs}
+    for a_, b_ in (("Mídia Digital", "Marketing Digital"),):
+        if a_ in labs and b_ in labs:
+            na = [x for x in recs if x["cl"] == a_]
+            Q("O", f"Classificações parecidas: {a_} e {b_}", f"A aba 7 usa as duas: {a_} em {len(na)} lançamentos ({brl(sum(x.get('v',0) for x in na))}, verbas: {', '.join(sorted({x['vb'] for x in na}))}) e {b_} em {sum(1 for x in recs if x['cl']==b_)}. O painel mantém as duas separadas, como na planilha.", "Confirmar se são categorias diferentes ou se uma deve ser unificada na outra.")
+    multi = collections.defaultdict(collections.Counter)
+    for x in recs:
+        if x["sb"]:
+            multi[x["sb"]][x["cl"]] += 1
+    mm = {s: c for s, c in multi.items() if len(c) > 1}
+    if mm:
+        Q("O", "Subclassificações em mais de uma classificação", "; ".join(f"{s}: " + ", ".join(f"{k} ({n})" for k, n in c.most_common()) for s, c in sorted(mm.items())) + ".", "Conferir se cada subclassificação deve pertencer a uma única classificação.")
+    docs = [(s, sum(multi[s].values())) for s in ("NF", "Verba") if s in multi]
+    if docs:
+        Q("O", "Subclassificações genéricas", "Subclassificações que não descrevem o tipo de despesa: " + ", ".join(f"“{s}” ({n} lançamentos)" for s, n in docs) + ".", "Trocar por uma subclassificação do tipo de despesa (ex.: leads, consultoria).")
     txt = [x for x in semv if x["raw"] != ""]
     if txt:
         Q("O", "Valores digitados como texto", "; ".join(f"linha {x['row']}: “{x['raw']}”" for x in txt) + ". Ficam fora dos totais da planilha e do painel.", "Corrigir as células.")
@@ -474,7 +490,7 @@ def main():
         print("CHANGED | " + line)
         print("verbas: " + " · ".join(f"{k} {brl(v)}" for k, v in rs["vb"].items()))
         if rs["semClass"]:
-            print(f"aviso: {rs['semClass']} lançamentos sem Classificação Correta")
+            print(f"aviso: {rs["semClass"]} lançamentos sem classificação")
         if rs["imob_novos"]:
             print("aviso: possíveis imobiliárias novas: " + "; ".join(rs["imob_novos"]))
         if not rs["conc_ok"]:

@@ -712,7 +712,7 @@ R.qualidade=()=>{
   { const md=D.semValor.filter(r=>r.classif===MDN).length;obs('p-q-sv',[`${D.semValor.length} linhas sem valor${md?`; ${md} classificadas como Marketing Digital`:''}.`]); }
   $('#q-notes').innerHTML=`<div><h4>Como os números foram montados</h4><ul>
     <li><b>Despesas:</b> aba 7, linha a linha. O valor negativo da planilha é lido como despesa. Total de ${brl(tot(L))}${M_.conc&&M_.conc.ok?', igual ao card Total Despesas e à soma dos grupos de verba da aba 1; o custo fixo de cada mês bate com a coluna Desp. Fixa':''}.</li>
-    <li><b>Classificação:</b> colunas “Classificação Correta” e “Sub Classificação (Correta)” da aba 7. Grafias que só mudam em maiúscula ou espaço são unificadas; “relacionamento” entra em “Relacionamento com o cliente” e “Exclusive praia” em “Praia Exclusive”.</li>
+    <li><b>Classificação:</b> colunas “Classificação” e “Sub Classificação” da aba 7 (revisadas pelo Marketing em 30/10/2026), sem reclassificação no painel. Grafias que só mudam em maiúscula ou espaço são unificadas; “relacionamento” entra em “Relacionamento com o cliente” e “Exclusive praia” em “Praia Exclusive”.</li>
     <li><b>Mês:</b> mês da data de competência. ${[REAL_T?cap(REAL_T)+' = realizado':'',CUR_T?CUR_T+' = em curso':'',PROV_T?PROV_T+' = provisão':''].filter(Boolean).join(', ')} (pela data da atualização, ${esc(M_.geradoEm||'')}). Planilha alterada pela última vez em ${esc(M_.dataPlanilha||'—')}.</li>
     <li><b>Centro de custo:</b> coluna CC Fat. <b>Classe:</b> C.fixo × Outros.</li>
     <li><b>Imobiliárias:</b> fornecedores da verba Imobiliária. ACNO Consultoria aparece como Hub Nogueira e P e B Administrações como Paulo Miranda, conforme os descritivos dos próprios lançamentos.</li>

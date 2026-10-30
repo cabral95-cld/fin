@@ -1,7 +1,7 @@
 import asyncio, json, sys
 from playwright.async_api import async_playwright
 
-PAGES = ["visao","vgv","por-verba","centro-custo","classificacao","fornecedores","custo-fixo","vendas-emp","orcamento","imobiliarias","sintta","lancamentos","qualidade"]
+PAGES = ["visao","vgv","por-verba","centro-custo","classificacao","fornecedores","vendas-emp","orcamento","imobiliarias","sintta","lancamentos","qualidade"]
 URL = "file:///home/claude/due/fin/index.html"
 
 async def main():

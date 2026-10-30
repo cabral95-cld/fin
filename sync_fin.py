@@ -12,7 +12,8 @@ Primeira linha impressa:
   CHANGED | …     PAINEL_NOVO.html gerado → testar e publicar
   FALHOU: …       estrutura inesperada → não publicar
 
-Fontes: despesas = aba "7. Base de Dados" (Classificação / Sub Classificação, revisadas em 30/10/2026);
+Fontes: despesas = aba "7. Base de Dados" (colunas Verba e Classificação, revisadas em 30/10/2026; Classe e
+Sub Classificação não são usadas);
 VGV = abas 1, 2, 4, 5 e 6. Nenhum número é estimado: o que não existe na planilha fica vazio.
 """
 import sys, re, json, html, datetime, collections, unicodedata, statistics, argparse
@@ -25,11 +26,11 @@ except ImportError:
 
 MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 MESL = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
-VERBAS = ["Marketing", "Trade", "Imobiliária", "Relacionamento", "Sintta"]
 CC_CANON = ["Habitá", "Solina", "Costa dos Coqueiros", "Orla", "Kora", "DUE", "Boulevard", "Vila Matilde",
             "Tropí", "Reci", "Naturê", "Costa do Mar", "Costa Azul", "NoMar", "Praia", "Veja 2", "Cais"]
 CC_TIPO = {c: ("Lançamento" if c in ("Kora", "Solina") else "Institucional" if c in ("DUE", "Reci", "Veja 2") else "Estoque") for c in CC_CANON}
 SEM_CL = "(sem classificação)"
+SEM_VB = "(sem verba)"
 # quase iguais unificados com aprovação do Alexandre em 30/10/2026
 NEAR = {"relacionamento": "relacionamento com o cliente", "exclusive praia": "praia exclusive"}
 IMOB_ALIAS = {
@@ -138,14 +139,6 @@ def canon_cc(v):
     raise Falha(f"centro de custo desconhecido na aba 7: {v!r}")
 
 
-def canon_verba(v):
-    k = sa(ws_(v)).lower() if v else ""
-    for x in VERBAS:
-        if sa(x).lower() == k:
-            return x
-    raise Falha(f"verba desconhecida na aba 7: {v!r}")
-
-
 def header_map(ws, row=6):
     h = {}
     for c in range(1, ws.max_column + 1):
@@ -153,6 +146,14 @@ def header_map(ws, row=6):
         if v is not None and ws_(v):
             h[sa(ws_(v)).lower()] = c
     return h
+
+
+def colopt(h, *names):
+    for n in names:
+        k = sa(n).lower()
+        if k in h:
+            return h[k]
+    return None
 
 
 def col(h, *names):
@@ -172,14 +173,14 @@ def parse(xlsx, data_txt, hoje=None):
             raise Falha(f"aba ausente: {n!r}")
     ws = wb["7. Base de Dados"]
     h = header_map(ws)
-    C = dict(comp=col(h, "Comp."), cl=col(h, "Classificação Correta", "Classificação"), sb=col(h, "Sub Classificação (Correta)", "Sub Classificação"),
+    C = dict(comp=col(h, "Comp."), cl=col(h, "Classificação", "Classificação Correta"),
              vb=col(h, "Verba"), fo=col(h, "Fornecedor"), ds=col(h, "Descritivo"), ccf=col(h, "CC Fat."),
-             ccd=col(h, "CC Dest."), classe=col(h, "Classe Despesa"), v=col(h, "Valor (R$)"), si=col(h, "Nº Sienge"))
-    clc, sbc, vbv, ccv, fxv = Canon(NEAR), Canon(NEAR), collections.Counter(), collections.Counter(), collections.Counter()
+             ccd=col(h, "CC Dest."), v=col(h, "Valor (R$)"), si=col(h, "Nº Sienge"))
+    clc, vbc, ccv = Canon(NEAR), Canon(NEAR), collections.Counter()
     recs, flags = [], collections.Counter()
     for r in range(7, ws.max_row + 1):
         g = lambda k: ws.cell(r, C[k]).value
-        if all(g(k) is None for k in ("cl", "sb", "vb", "fo", "v")):
+        if all(g(k) is None for k in ("cl", "vb", "fo", "v")):
             if g("comp") is not None:
                 flags["linha_vazia_com_data"] += 1
             continue
@@ -188,19 +189,17 @@ def parse(xlsx, data_txt, hoje=None):
             raise Falha(f"linha {r}: competência inválida {comp!r}")
         if comp.year != 2026:
             raise Falha(f"linha {r}: competência fora de 2026 ({comp:%d/%m/%Y})")
-        vb = canon_verba(g("vb"))
-        vbv[ws_(g("vb"))] += 1
+        vbk = vbc.add(g("vb"))
         ccf, ccd = canon_cc(g("ccf")), canon_cc(g("ccd"))
         if ccf is None:
             raise Falha(f"linha {r}: CC Fat. vazio")
         for x in (g("ccf"), g("ccd")):
             if x is not None and ws_(x):
                 ccv[ws_(x)] += 1
-        fxv[ws_(g("classe")) if g("classe") else ""] += 1
         si = g("si")
-        rec = dict(row=r, m=comp.month, dia=comp.day, vb=vb, ccf=ccf, ccd=ccd,
-                   clk=clc.add(g("cl")), sbk=sbc.add(g("sb")), fo=ws_(g("fo")) if g("fo") else "(sem fornecedor)",
-                   ds=ws_(g("ds")) if g("ds") else "", fx=1 if str(g("classe") or "").strip().lower() == "c.fixo" else 0,
+        rec = dict(row=r, m=comp.month, dia=comp.day, vbk=vbk, ccf=ccf, ccd=ccd,
+                   clk=clc.add(g("cl")), fo=ws_(g("fo")) if g("fo") else "(sem fornecedor)",
+                   ds=ws_(g("ds")) if g("ds") else "",
                    si="" if si is None else (str(int(si)) if isinstance(si, float) else ws_(si)))
         v = num(g("v"))
         if v is not None:
@@ -217,44 +216,45 @@ def parse(xlsx, data_txt, hoje=None):
         raise Falha("aba 7 sem lançamentos com valor")
     for x in recs:
         x["cl"] = clc.label(x["clk"]) if x["clk"] else SEM_CL
-        x["sb"] = sbc.label(x["sbk"]) if x["sbk"] else ""
+        x["vb"] = vbc.label(x["vbk"]) if x["vbk"] else SEM_VB
 
     # ---------- abas consolidadas (lidas por posição; checadas pelo rótulo) ----------
+    bad = []
+    def rd(c):
+        v = c.value
+        if isinstance(v, str) and v.startswith("#"):
+            bad.append(f"{c.parent.title}!{c.coordinate} ({v})")
+            return None
+        return num(v)
     a1, a1f = wb["1. Visão Geral"], wf["1. Visão Geral"]
     def expect(wsx, cell, txt):
         v = wsx[cell].value
         if v is None or sa(txt).lower() not in sa(ws_(v)).lower():
             raise Falha(f"{wsx.title}!{cell}: esperado {txt!r}, encontrado {v!r}")
     expect(a1, "B6", "VGV TOTAL"); expect(a1, "D6", "TOTAL DESPESAS"); expect(a1, "B12", "Janeiro"); expect(a1, "B23", "Dezembro")
-    expect(a1, "I11", "Desp. Fixa"); expect(a1, "B27", "Grupo de Verba")
-    vgv26 = [num(a1.cell(12 + i, 3).value) for i in range(12)]
-    a1desp = [num(a1.cell(12 + i, 4).value) or 0.0 for i in range(12)]
-    a1fixo = [num(a1.cell(12 + i, 9).value) or 0.0 for i in range(12)]
-    a1card = num(a1["D7"].value)
-    a1tab = num(a1["D24"].value)
-    grupos = {}
-    for r in range(28, 33):
-        nome = ws_(a1.cell(r, 2).value or "")
-        grupos[canon_verba(nome)] = num(a1.cell(r, 3).value) or 0.0
+    vgv26 = [rd(a1.cell(12 + i, 3)) for i in range(12)]
+    a1desp = [rd(a1.cell(12 + i, 4)) or 0.0 for i in range(12)]
+    a1card = rd(a1["D7"])
+    a1tab = rd(a1["D24"])
     typed = [i for i in range(12) if not str(a1f.cell(12 + i, 4).value or "").startswith("=")]
 
     a2 = wb["2. VGV 2025 x 2026 MARKETING"]
     expect(a2, "B8", "Janeiro"); expect(a2, "C7", "VGV 2025")
-    vgv25 = [num(a2.cell(8 + i, 3).value) or 0.0 for i in range(12)]
-    vgv26_a2 = [num(a2.cell(8 + i, 4).value) for i in range(12)]
-    tot25_decl = num(a2["C20"].value)
+    vgv25 = [rd(a2.cell(8 + i, 3)) or 0.0 for i in range(12)]
+    vgv26_a2 = [rd(a2.cell(8 + i, 4)) for i in range(12)]
+    tot25_decl = rd(a2["C20"])
 
     a4 = wb["4. Imobiliárias"]
     expect(a4, "D6", "VGV Vendas")
-    vgv_imob = [num(a4.cell(7 + i, 4).value) or 0.0 for i in range(12)]
+    vgv_imob = [rd(a4.cell(7 + i, 4)) or 0.0 for i in range(12)]
 
     a5 = wb["5.Sintta"]
     expect(a5, "C5", "Vendas"); expect(a5, "J5", "Meta")
-    s_vendas = [num(a5.cell(6 + i, 3).value) or 0.0 for i in range(12)]
+    s_vendas = [rd(a5.cell(6 + i, 3)) or 0.0 for i in range(12)]
     s_line_pct = num(a5["E18"].value); s_v_tot = num(a5["C18"].value); s_d_tot = num(a5["D18"].value)
     metas = []
     for r in range(6, 30):
-        nm, mt, rz = a5.cell(r, 9).value, num(a5.cell(r, 10).value), num(a5.cell(r, 11).value)
+        nm, mt, rz = a5.cell(r, 9).value, rd(a5.cell(r, 10)), rd(a5.cell(r, 11))
         if nm is None:
             break
         if mt:
@@ -267,7 +267,7 @@ def parse(xlsx, data_txt, hoje=None):
         nm = a6.cell(r, 2).value
         if nm is None or not ws_(nm):
             break
-        verbas_emp.append({"nome": EMP_TO_CC.get(ws_(nm), ws_(nm)), "verba": num(a6.cell(r, 3).value), "usado": num(a6.cell(r, 4).value) or 0.0})
+        verbas_emp.append({"nome": EMP_TO_CC.get(ws_(nm), ws_(nm)), "verba": rd(a6.cell(r, 3)), "usado": rd(a6.cell(r, 4)) or 0.0})
         if not str(a6f.cell(r, 4).value or "").startswith("="):
             a6_typed += 1
     vendas = []
@@ -277,15 +277,15 @@ def parse(xlsx, data_txt, hoje=None):
         if nm is None or not ws_(nm):
             break
         nome = EMP_TO_CC.get(ws_(nm), ws_(nm))
-        vg = [round(num(a6.cell(r, 4 + 2 * i).value) or 0.0, 2) for i in range(12)]
-        uh = [int(num(a6.cell(r, 5 + 2 * i).value) or 0) for i in range(12)]
-        unid = num(a6.cell(r, 3).value)
-        vendas.append({"nome": nome, "unid": int(unid) if unid else None, "vendas": int(num(a6.cell(r, 29).value) or 0),
-                       "estoque": int(num(a6.cell(r, 30).value) or 0), "vgv": vg, "uh": uh,
+        vg = [round(rd(a6.cell(r, 4 + 2 * i)) or 0.0, 2) for i in range(12)]
+        uh = [int(rd(a6.cell(r, 5 + 2 * i)) or 0) for i in range(12)]
+        unid = rd(a6.cell(r, 3))
+        vendas.append({"nome": nome, "unid": int(unid) if unid else None, "vendas": int(rd(a6.cell(r, 29)) or 0),
+                       "estoque": int(rd(a6.cell(r, 30)) or 0), "vgv": vg, "uh": uh,
                        "tipo": "Lançamento" if nome in ("Kora", "Solina") else "Estoque"})
     if hdr6[28] != "Total de Vendas" or hdr6[29] != "Estoque":
         raise Falha(f"aba 6: colunas de vendas/estoque mudaram ({hdr6[28]!r}, {hdr6[29]!r})")
-    a6_tot = [num(a6.cell(29 + len(vendas), 4 + 2 * i).value) for i in range(12)]
+    a6_tot = [rd(a6.cell(29 + len(vendas), 4 + 2 * i)) for i in range(12)]
 
     # ---------- período ----------
     datetime.datetime.strptime(data_txt, "%d/%m/%Y %H:%M")  # valida o formato
@@ -304,26 +304,27 @@ def parse(xlsx, data_txt, hoje=None):
     def dimsort(vals):
         return sorted(vals, key=lambda x: (sa(x).lower(), x))
     CLS = dimsort({x["cl"] for x in recs})
-    SUBS = dimsort({x["sb"] for x in recs if x["sb"]})
+    vtot = collections.defaultdict(float)
+    for x in rows:
+        vtot[x["vb"]] += x["v"]
+    VERBAS = sorted({x["vb"] for x in recs}, key=lambda k: (-vtot.get(k, 0), sa(k).lower()))
     FORN = dimsort({x["fo"] for x in rows})
     CCS = [c for c in CC_CANON if any(x["ccf"] == c or x["ccd"] == c for x in rows)]
-    CI, SI, FI, CCI = ({v: i for i, v in enumerate(a)} for a in (CLS, SUBS, FORN, CCS))
+    CI, FI, CCI = ({v: i for i, v in enumerate(a)} for a in (CLS, FORN, CCS))
+    # posições 5 (sub) e 6 (classe) ficam fixas em -1 e 0: essas colunas não são usadas
     L = [[x["m"], VERBAS.index(x["vb"]), CCI[x["ccf"]], CCI[x["ccd"]] if x["ccd"] else -1, CI[x["cl"]],
-          SI[x["sb"]] if x["sb"] else -1, x["fx"], FI[x["fo"]], x["v"], x["row"], x["si"], x["ds"],
+          -1, 0, FI[x["fo"]], x["v"], x["row"], x["si"], x["ds"],
           0 if x["dia"] == 1 else x["dia"]] for x in rows]
     imob = {str(FI[f]): a for f, a in IMOB_ALIAS.items() if f in FI}
-    imob_novos = sorted({x["fo"] for x in rows if x["vb"] == "Imobiliária" and x["fo"] not in IMOB_ALIAS
+    imob_novos = sorted({x["fo"] for x in rows if re.search(r"imobili", sa(x["cl"]).lower()) and x["fo"] not in IMOB_ALIAS
                          and re.search(r"IMOBILI|CORRET|BROKER|NEGOCIOS IMOB", sa(x["fo"]).upper()) and not re.search(r"ASSOCIACAO|SINDICATO|CONSELHO", sa(x["fo"]).upper())})
     SV = [{"row": x["row"], "m": x["m"], "verba": x["vb"], "classif": x["cl"], "forn": x["fo"], "desc": x["ds"], "raw": x["raw"]} for x in semv]
 
     # ---------- conciliação com a aba 1 ----------
     tot = round(sum(x["v"] for x in rows), 2)
     base_m = [round(sum(x["v"] for x in rows if x["m"] == i + 1), 2) for i in range(12)]
-    base_fx = [round(sum(x["v"] for x in rows if x["m"] == i + 1 and x["fx"]), 2) for i in range(12)]
     base_vb = {v: round(sum(x["v"] for x in rows if x["vb"] == v), 2) for v in VERBAS}
     rc_card = a1card is not None and abs(tot - a1card) < 0.01
-    rc_vb = [v for v in VERBAS if abs(base_vb[v] - grupos.get(v, 0)) >= 0.01]
-    rc_fx = [i for i in range(12) if abs(base_fx[i] - a1fixo[i]) >= 0.01]
 
     # ---------- qualidade dos dados (tudo calculado desta planilha) ----------
     qi = []
@@ -331,14 +332,10 @@ def parse(xlsx, data_txt, hoje=None):
         qi.append([sev, tit, txt, acao])
     if not rc_card:
         Q("C", "Base não bate com o card Total Despesas", f"A aba 7 soma {brl(tot)} e o card Total Despesas da aba 1 mostra {brl(a1card or 0)} (diferença de {brl(tot-(a1card or 0))}). O painel usa a aba 7.", "Conferir a fórmula do card e a base antes de usar a aba 1 em apresentações.")
-    if rc_vb:
-        Q("C", "Grupos de verba da aba 1 não batem com a base", "; ".join(f"{v}: base {brl(base_vb[v])} × aba 1 {brl(grupos.get(v,0))}" for v in rc_vb) + ".", "Conferir as fórmulas dos grupos de verba da aba 1.")
-    if rc_fx:
-        Q("A", "Custo fixo mensal da aba 1 não bate com a base", "; ".join(f"{MESES[i]}: base {brl(base_fx[i])} × aba 1 {brl(a1fixo[i])}" for i in rc_fx) + ".", "Conferir a coluna Desp. Fixa da aba 1.")
-    sem = [x for x in recs if x["cl"] == SEM_CL]
+    sem = [x for x in recs if x["cl"] == SEM_CL or x["vb"] == SEM_VB]
     if sem:
         sv = sum(x.get("v", 0) for x in sem)
-        Q("A", "Lançamentos sem classificação", f"{len(sem)} lançamento{'s' if len(sem)>1 else ''} ({brl(sv)}) sem Classificação nem Sub Classificação na aba 7 (linhas {', '.join(str(x['row']) for x in sem)}). No painel aparecem como “{SEM_CL}”.", "Preencher as duas colunas nessas linhas.")
+        Q("A", "Lançamentos sem verba ou classificação", f"{len(sem)} lançamento{'s' if len(sem)>1 else ''} ({brl(sv)}) com Verba ou Classificação vazia na aba 7 (linhas {', '.join(str(x['row']) for x in sem)}). No painel aparecem como “{SEM_VB}” / “{SEM_CL}”.", "Preencher as colunas nessas linhas.")
     nolaunch = [i for i in range(12) if i + 1 <= CUR and base_m[i] > 0 and not vgv_ok[i]]
     if nolaunch:
         partes = [f"{MESL[i]} ({brl(vgv26[i])})" if vgv26[i] else f"{MESL[i]} (vazio)" for i in nolaunch]
@@ -370,6 +367,8 @@ def parse(xlsx, data_txt, hoje=None):
             dv.append(f"{MESL[i]}: " + ", ".join(f"{brl(v)} ({k})" for k, v in nums.items()))
     if dv:
         Q("A", "VGV 2026 diferente entre as abas", "; ".join(dv) + ". O painel usa a aba 1.", "Definir uma fonte única (export de fechamento do CV CRM) e referenciar as abas a ela.")
+    if bad:
+        Q("A", "Células lidas pelo painel com erro", "O painel lê estas células e elas trazem erro de fórmula; o painel mostra esse valor vazio ou zerado (nada é estimado): " + ", ".join(bad[:20]) + (f" e mais {len(bad)-20}" if len(bad) > 20 else "") + ".", "Corrigir as fórmulas na planilha.")
     errs = {}
     for n in wb.sheetnames:
         k = sum(1 for row in wb[n].iter_rows() for c in row if isinstance(c.value, str) and re.match(r"#(VALUE|REF|N/A|DIV/0|NAME|NUM|NULL)", c.value))
@@ -405,36 +404,33 @@ def parse(xlsx, data_txt, hoje=None):
     if a6_typed:
         Q("O", "Verba por empreendimento digitada", f"Verba e utilizado da aba 6 são valores digitados ({a6_typed} linhas sem fórmula no utilizado), sem ligação com a base, e o período de acumulação não está declarado.", "Registrar na aba o período e a fonte do utilizado.")
     var = []
-    for nome, cz in (("Classificação", clc), ("Sub Classificação", sbc)):
+    for nome, cz in (("Verba", vbc), ("Classificação", clc)):
         vv = cz.variants()
         if vv:
             var.append(f"{nome}: " + "; ".join(f"{k} ({' / '.join('“'+s+'”' for s in v)})" for k, v in sorted(vv.items())))
-    vbx = [k for k in vbv if k not in VERBAS]
-    if vbx:
-        var.append("Verba digitada como " + ", ".join(f"“{k}”" for k in sorted(vbx)))
     if var:
         Q("O", "Grafias unificadas no painel", ". ".join(var) + ".", "Usar lista suspensa (validação de dados) nessas colunas.")
     # coerência da taxonomia (só aponta; nada é reclassificado no painel)
-    labs = {x["cl"] for x in recs}
+    labs = {x["vb"] for x in recs}
     for a_, b_ in (("Mídia Digital", "Marketing Digital"),):
         if a_ in labs and b_ in labs:
-            na = [x for x in recs if x["cl"] == a_]
-            Q("O", f"Classificações parecidas: {a_} e {b_}", f"A aba 7 usa as duas: {a_} em {len(na)} lançamentos ({brl(sum(x.get('v',0) for x in na))}, verbas: {', '.join(sorted({x['vb'] for x in na}))}) e {b_} em {sum(1 for x in recs if x['cl']==b_)}. O painel mantém as duas separadas, como na planilha.", "Confirmar se são categorias diferentes ou se uma deve ser unificada na outra.")
+            na = [x for x in recs if x["vb"] == a_]
+            Q("O", f"Verbas parecidas: {a_} e {b_}", f"A aba 7 usa as duas: {a_} em {len(na)} lançamentos ({brl(sum(x.get('v',0) for x in na))}) e {b_} em {sum(1 for x in recs if x['vb']==b_)}. O painel mantém as duas separadas, como na planilha.", "Confirmar se são verbas diferentes ou se uma deve ser unificada na outra.")
     multi = collections.defaultdict(collections.Counter)
     for x in recs:
-        if x["sb"]:
-            multi[x["sb"]][x["cl"]] += 1
+        if x["cl"] != SEM_CL:
+            multi[x["cl"]][x["vb"]] += 1
     mm = {s: c for s, c in multi.items() if len(c) > 1}
     if mm:
-        Q("O", "Subclassificações em mais de uma classificação", "; ".join(f"{s}: " + ", ".join(f"{k} ({n})" for k, n in c.most_common()) for s, c in sorted(mm.items())) + ".", "Conferir se cada subclassificação deve pertencer a uma única classificação.")
+        Q("O", "Classificações em mais de uma verba", "; ".join(f"{s}: " + ", ".join(f"{k} ({n})" for k, n in c.most_common()) for s, c in sorted(mm.items())) + ".", "Conferir se cada classificação deve pertencer a uma única verba.")
     docs = [(s, sum(multi[s].values())) for s in ("NF", "Verba") if s in multi]
     if docs:
-        Q("O", "Subclassificações genéricas", "Subclassificações que não descrevem o tipo de despesa: " + ", ".join(f"“{s}” ({n} lançamentos)" for s, n in docs) + ".", "Trocar por uma subclassificação do tipo de despesa (ex.: leads, consultoria).")
+        Q("O", "Classificações genéricas", "Classificações que não descrevem o tipo de despesa: " + ", ".join(f"“{s}” ({n} lançamentos)" for s, n in docs) + ".", "Trocar por uma classificação do tipo de despesa (ex.: leads, consultoria).")
     txt = [x for x in semv if x["raw"] != ""]
     if txt:
         Q("O", "Valores digitados como texto", "; ".join(f"linha {x['row']}: “{x['raw']}”" for x in txt) + ". Ficam fora dos totais da planilha e do painel.", "Corrigir as células.")
     if imob_novos:
-        Q("O", "Possíveis imobiliárias novas", "Fornecedores da verba Imobiliária que parecem imobiliárias e ainda não estão na lista de parceiros do painel: " + ", ".join(imob_novos) + ".", "Avisar para incluir na lista de parceiros (até lá entram em “Outros fornecedores da verba”).")
+        Q("O", "Possíveis imobiliárias novas", "Fornecedores com classificação de imobiliária que ainda não estão na lista de parceiros do painel: " + ", ".join(imob_novos) + ".", "Avisar para incluir na lista de parceiros (até lá entram em “Outros fornecedores”).")
 
     ccd_vazio = sum(1 for x in rows if not x["ccd"])
     ccd_dif = sum(1 for x in rows if x["ccd"] and x["ccd"] != x["ccf"])
@@ -445,15 +441,15 @@ def parse(xlsx, data_txt, hoje=None):
                  "real": REAL, "cur": CUR, "nLanc": len(rows), "nSemValor": len(semv),
                  "ccdVazio": ccd_vazio, "ccdDif": ccd_dif,
                  "vgvAte": MESES[vms[-1]].lower() if vms else None,
-                 "conc": {"card": a1card, "base": tot, "ok": rc_card and not rc_vb and not rc_fx}},
-        "meses": MESES, "verbas": VERBAS, "cls": CLS, "subs": SUBS, "forn": FORN, "ccs": CCS,
+                 "conc": {"card": a1card, "base": tot, "ok": rc_card}},
+        "meses": MESES, "verbas": VERBAS, "cls": CLS, "subs": [], "forn": FORN, "ccs": CCS,
         "ccTipo": [CC_TIPO[c] for c in CCS], "imob": imob, "L": L, "semValor": SV,
         "vgv26": vgv26, "vgvOk": vgv_ok, "vgv25": vgv25, "aba1Desp": a1desp, "vgvImob": vgv_imob,
         "vendasEmp": vendas, "verbasEmp": verbas_emp,
         "sintta": {"vendas": s_vendas, "metas": metas}, "qi": qi, "flags": dict(flags),
     }
     resumo = {"total": tot, "n": len(rows), "semValor": len(semv), "card": a1card, "conc_ok": out["meta"]["conc"]["ok"],
-              "vb": base_vb, "real": REAL, "cur": CUR, "classes": len(CLS), "subs": len(SUBS), "qi": len(qi),
+              "vb": base_vb, "real": REAL, "cur": CUR, "classes": len(CLS), "verbas": len(VERBAS), "qi": len(qi),
               "semClass": len(sem), "imob_novos": imob_novos}
     return out, resumo
 
@@ -479,7 +475,7 @@ def main():
             old = {}
         same = all(old.get(k) == json.loads(json.dumps(data[k])) for k in SIG) and (old.get("meta", {}).get("real"), old.get("meta", {}).get("cur")) == (data["meta"]["real"], data["meta"]["cur"])
         line = (f"base {data['meta']['dataPlanilha']} · {rs['n']} lançamentos · {brl(rs['total'])} · card aba 1 {brl(rs['card'] or 0)} "
-                f"({'confere' if rs['conc_ok'] else 'DIVERGE'}) · {rs['classes']} classificações · {rs['subs']} subclassificações · "
+                f"({'confere' if rs['conc_ok'] else 'DIVERGE'}) · {rs['verbas']} verbas · {rs['classes']} classificações · "
                 f"realizado até {MESES[rs['real']-1] if rs['real']>=1 else '—'} · {rs['qi']} apontamentos de qualidade")
         if same and not a.force:
             print("UNCHANGED | " + line)
@@ -490,7 +486,7 @@ def main():
         print("CHANGED | " + line)
         print("verbas: " + " · ".join(f"{k} {brl(v)}" for k, v in rs["vb"].items()))
         if rs["semClass"]:
-            print(f"aviso: {rs["semClass"]} lançamentos sem classificação")
+            print(f"aviso: {rs['semClass']} lançamentos sem verba ou classificação")
         if rs["imob_novos"]:
             print("aviso: possíveis imobiliárias novas: " + "; ".join(rs["imob_novos"]))
         if not rs["conc_ok"]:

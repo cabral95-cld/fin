@@ -2,7 +2,7 @@
 // Uso: node check_fin.cjs painel_novo.html  → última linha "CHECK OK" ou "CHECK FAIL: …"
 const { chromium } = require('playwright');
 const path = require('path');
-const PAGES = ['visao','vgv','por-verba','centro-custo','classificacao','fornecedores','custo-fixo','vendas-emp','orcamento','imobiliarias','sintta','lancamentos','qualidade'];
+const PAGES = ['visao','vgv','por-verba','centro-custo','classificacao','fornecedores','vendas-emp','orcamento','imobiliarias','sintta','lancamentos','qualidade'];
 (async () => {
   const file = path.resolve(process.argv[2]);
   const b = await chromium.launch();

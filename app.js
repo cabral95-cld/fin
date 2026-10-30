@@ -6,7 +6,8 @@ const LOGO_W='/*__LOGO__*/';
 const FONT_CSS=($('#fontcss')||{}).textContent||'';
 const MES=D.meses, mes=MES.map(m=>m.toLowerCase());
 const MESL=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const VB=D.verbas, VBC=['var(--s1)','var(--s2)','var(--s5)','var(--s3)','var(--gold)'];
+const VB=D.verbas, PAL=['var(--s1)','var(--s2)','var(--s5)','var(--s3)','var(--gold)','#6f8fa3','#b5654a','#7d8f3a','#8a6fb0','#3c9aa5','var(--s4)','#c9a227'];
+const VBC=VB.map((_,i)=>PAL[i%PAL.length]);const ALLV=VB.map((_,i)=>i);
 const L=D.L.map(a=>({m:a[0],vb:a[1],cc:a[2],ccd:a[3],cl:a[4],sb:a[5],fx:a[6],fo:a[7],v:a[8],row:a[9],si:a[10],ds:a[11],dia:a[12]}));
 const IMOB=new Map(Object.entries(D.imob).map(([k,v])=>[+k,v]));
 const M_=D.meta||{};const REAL=M_.real??9, CUR=M_.cur??10;
@@ -16,9 +17,14 @@ const REAL_T=span_(1,REAL),CUR_T=CUR>=1&&CUR<=12?MES[CUR-1].toLowerCase():'',PRO
 const cap=t=>t?t[0].toUpperCase()+t.slice(1):t;
 const plv=(t,a,b)=>t.includes('–')?b:a;
 const QI=D.qi||[];const MDN='Marketing Digital';
+const nrm=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const vbIdx=names=>VB.map((n,i)=>[n,i]).filter(([n])=>names.includes(nrm(n))).map(x=>x[1]);
+const SINTTA_VB=vbIdx(['sintta','operacao']);const DIG_VB=vbIdx(['marketing digital','midia digital']);
+const IMOB_CL=D.cls.map((n,i)=>[n,i]).filter(([n])=>/imobili/.test(nrm(n))).map(x=>x[1]);
+const FIX={imobiliarias:{vb:false,f:r=>IMOB_CL.includes(r.cl),txt:['Classificação',(IMOB_CL.map(i=>D.cls[i]).join(', ')||'—')+' (fixa nesta tela)']},
+           sintta:{vb:true,f:r=>SINTTA_VB.includes(r.vb),txt:['Verba',(SINTTA_VB.map(i=>VB[i]).join(' + ')||'—')+' (fixa nesta tela)']}};
 const IMOB_LAST=D.vgvImob.reduce((a,v,i)=>v>0?i+1:a,0);
 const EMP_LAST=[0,1,2,3,4,5,6,7,8,9,10,11].reduce((a,i)=>D.vendasEmp.some(e=>e.vgv[i])?i+1:a,0);const EMP_T=span_(1,EMP_LAST)||'—';const IMOB_T=span_(1,IMOB_LAST)||'—';
-const CL_MD=D.cls.indexOf('Marketing Digital');
 const DESP25=D.desp25||null; /* a planilha não traz despesas de 2025 */
 const CAM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
 const OBS={};const obs=(id,arr)=>{OBS[id]=arr.filter(Boolean);};
@@ -43,17 +49,17 @@ const fname=id=>IMOB.get(id)||D.forn[id];
 const nLc=n=>N0.format(n)+(n===1?' lançamento':' lançamentos');
 
 /* ---------- estado ---------- */
-const FDEF=()=>({m0:1,m1:12,vb:[0,1,2,3,4],fx:[0,1],cc:[],cl:[],fo:[]});
+const FDEF=()=>({m0:1,m1:12,vb:ALLV.slice(),cc:[],cl:[],fo:[]});
 let F=FDEF();
 const ST={rail:false,page:'visao'};
-try{const s=JSON.parse(localStorage.getItem('duefin')||'{}');if(s.rail)ST.rail=true;if(s.page)ST.page=s.page;if(s.theme)ST.theme=s.theme;if(s.F)F=Object.assign(FDEF(),s.F);}catch(e){}
-function save(){try{localStorage.setItem('duefin',JSON.stringify({rail:ST.rail,page:ST.page,theme:ST.theme,F}))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem('duefin3')||'{}');if(s.rail)ST.rail=true;if(s.page)ST.page=s.page;if(s.theme)ST.theme=s.theme;if(s.F)F=Object.assign(FDEF(),s.F);}catch(e){}
+function save(){try{localStorage.setItem('duefin3',JSON.stringify({rail:ST.rail,page:ST.page,theme:ST.theme,F}))}catch(e){}}
 const curSec=()=>document.getElementById('pg-'+ST.page);
-const PV=()=>{const s=curSec();return s&&s.dataset.vb!=null?+s.dataset.vb:null;};
+const PV=()=>FIX[ST.page]||null;
 function match(r,skip,pv){
   if(r.m<F.m0||r.m>F.m1)return false;
-  if(pv!=null){if(r.vb!==pv)return false;}else if(skip!=='vb'&&!F.vb.includes(r.vb))return false;
-  if(skip!=='fx'&&!F.fx.includes(r.fx))return false;
+  if(pv&&!pv.f(r))return false;
+  if(!(pv&&pv.vb)&&skip!=='vb'&&!F.vb.includes(r.vb))return false;
   if(skip!=='cc'&&F.cc.length&&!F.cc.includes(r.cc))return false;
   if(skip!=='cl'&&F.cl.length&&!F.cl.includes(r.cl))return false;
   if(skip!=='fo'&&F.fo.length&&!F.fo.includes(r.fo))return false;
@@ -66,7 +72,7 @@ function group(rs,key){const m=new Map();for(const r of rs){const k=typeof key==
 function monthly(rs){const a=Array(12).fill(0);for(const r of rs)a[r.m-1]+=r.v;return a;}
 const stat=m=>m<=REAL?'':m===CUR?'em curso':'provisão';
 const perTxt=()=>F.m0===1&&F.m1===12?'Jan–Dez/26':F.m0===F.m1?MES[F.m0-1]+'/26':`${MES[F.m0-1]}–${MES[F.m1-1]}/26`;
-function pageWhere(){return ST.page==='custo-fixo'?{skip:'fx',where:r=>r.fx===1}:{};}
+function pageWhere(){return {};}
 
 /* ---------- tooltip ---------- */
 const TIP=$('#tip');
@@ -147,7 +153,7 @@ function bindRows(tb,fn){tb.querySelectorAll('tr.clk').forEach(tr=>{tr.tabIndex=
 
 /* ---------- textos que dependem da carga ---------- */
 (()=>{const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('m-data',M_.dataPlanilha||'—');set('m-empt',EMP_T);set('m-empt2',EMP_T);set('m-empm',EMP_LAST?MESL[EMP_LAST-1].toLowerCase()+'/26':'—');set('m-imobm',IMOB_LAST?MESL[IMOB_LAST-1].toLowerCase():'—');set('m-nlanc',N0.format(L.length));set('m-ccdv',N0.format(M_.ccdVazio??0));set('m-ccdd',N0.format(M_.ccdDif??0));
+  set('m-data',M_.dataPlanilha||'—');set('m-ncl',N0.format(D.cls.length));set('m-imobcl',IMOB_CL.map(i=>D.cls[i]).join(', ')||'nenhuma');set('m-sinttavb',SINTTA_VB.map(i=>VB[i]).join(' e ')||'—');set('m-empt',EMP_T);set('m-empt2',EMP_T);set('m-empm',EMP_LAST?MESL[EMP_LAST-1].toLowerCase()+'/26':'—');set('m-imobm',IMOB_LAST?MESL[IMOB_LAST-1].toLowerCase():'—');set('m-nlanc',N0.format(L.length));set('m-ccdv',N0.format(M_.ccdVazio??0));set('m-ccdd',N0.format(M_.ccdDif??0));
   const vm=[1,2,3,4,5,6,7,8,9,10,11,12].filter(VGV_OK);
   set('m-period',`Despesas Jan–Dez/26${REAL_T?` (realizado até ${MES[REAL-1].toLowerCase()})`:''} · VGV ${vm.length?span_(vm[0],vm[vm.length-1]).replace(/^./,c=>c.toUpperCase())+'/26':'—'}`);
   const nl=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>m<=Math.min(CUR,12)&&!VGV_OK(m));
@@ -162,9 +168,7 @@ m0.addEventListener('change',()=>{F.m0=+m0.value;if(F.m1<F.m0)F.m1=F.m0;changed(
 m1.addEventListener('change',()=>{F.m1=+m1.value;if(F.m0>F.m1)F.m0=F.m1;changed();});
 $$('#gf [data-p]').forEach(b=>b.addEventListener('click',()=>{const [a,c]=b.dataset.p.split('-').map(Number);F.m0=a;F.m1=c;changed();}));
 $('#f-vb').innerHTML=VB.map((v,i)=>`<button class="chip" type="button" data-i="${i}" style="--c:${VBC[i]}"><span class="sw"></span>${v}</button>`).join('');
-$$('#f-vb .chip').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;F.vb=F.vb.includes(i)?F.vb.filter(x=>x!==i):[...F.vb,i].sort();if(!F.vb.length)F.vb=[0,1,2,3,4];changed();}));
-$('#f-fx').innerHTML=['Custo fixo','Outros'].map((v,i)=>`<button class="chip" type="button" data-i="${1-i}" style="--c:${i?'var(--s4)':'var(--petrol-750)'}"><span class="sw"></span>${v}</button>`).join('');
-$$('#f-fx .chip').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;F.fx=F.fx.includes(i)?F.fx.filter(x=>x!==i):[...F.fx,i];if(!F.fx.length)F.fx=[0,1];changed();}));
+$$('#f-vb .chip').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;F.vb=F.vb.includes(i)?F.vb.filter(x=>x!==i):[...F.vb,i].sort();if(!F.vb.length)F.vb=ALLV.slice();changed();}));
 $('#reset').addEventListener('click',()=>{F=FDEF();changed();});
 
 const DDS={};
@@ -210,8 +214,8 @@ makeDD('fo',{label:'fornecedor',all:'Todos os fornecedores',sortByValue:true,lim
 function filterList(){
   const sec=curSec();if(!sec||sec.dataset.f!=='full')return [];
   const out=[],pv=PV();
-  if(pv!=null)out.push(['Verba',VB[pv]+' (fixa nesta tela)']);else if(F.vb.length<5)out.push(['Verba',F.vb.map(i=>VB[i]).join(', ')]);
-  if(ST.page==='custo-fixo')out.push(['Classe','Custo fixo (fixa nesta tela)']);else if(F.fx.length<2)out.push(['Classe',F.fx[0]?'Custo fixo':'Outros']);
+  if(pv)out.push(pv.txt);
+  if(!(pv&&pv.vb)&&F.vb.length<VB.length)out.push(['Verba',F.vb.length<=4?F.vb.map(i=>VB[i]).join(', '):F.vb.length+' verbas']);
   const nm=(arr,f,w)=>arr.length<=4?arr.map(f).join(', '):`${arr.length} ${w}`;
   if(F.cc.length)out.push(['Centro de custo',nm(F.cc,i=>D.ccs[i],'centros de custo')]);
   if(F.cl.length)out.push(['Classificação',nm(F.cl,i=>D.cls[i],'classificações')]);
@@ -225,15 +229,13 @@ function syncFilters(){
   m0.value=F.m0;m1.value=F.m1;
   $$('#gf [data-p]').forEach(b=>{const [a,c]=b.dataset.p.split('-').map(Number);b.setAttribute('aria-pressed',a===F.m0&&c===F.m1);});
   $$('#f-vb .chip').forEach(b=>b.setAttribute('aria-pressed',F.vb.includes(+b.dataset.i)));
-  $$('#f-fx .chip').forEach(b=>b.setAttribute('aria-pressed',F.fx.includes(+b.dataset.i)));
   Object.values(DDS).forEach(d=>d.label());
   const sec=curSec(),mode=sec?.dataset.f;
   const rs=mode==='full'?rows(pageWhere()):null;
   const tags=[];
   if(F.m0!==1||F.m1!==12)tags.push(['per',perTxt()]);
   if(mode==='full'){
-    if(PV()==null&&F.vb.length<5)tags.push(['vb',F.vb.map(i=>VB[i]).join(' + ')]);
-    if(ST.page!=='custo-fixo'&&F.fx.length<2)tags.push(['fx',F.fx[0]?'Custo fixo':'Outros']);
+    if(!(PV()&&PV().vb)&&F.vb.length<VB.length)tags.push(['vb',F.vb.length<=3?F.vb.map(i=>VB[i]).join(' + '):F.vb.length+' verbas']);
     const nm=(arr,f,w)=>arr.length<=2?arr.map(f).join(', '):arr.length+' '+w;
     if(F.cc.length)tags.push(['cc',nm(F.cc,i=>D.ccs[i],'centros de custo')]);
     if(F.cl.length)tags.push(['cl',nm(F.cl,i=>D.cls[i],'classificações')]);
@@ -251,8 +253,8 @@ let DL=null;
 (async()=>{try{if(window.claude&&window.claude.use)DL=await window.claude.use('downloads');}catch(e){DL=null;}$('#csvBtn').hidden=!DL;$('#rp-pdf').hidden=!DL;})();
 function csvOf(rs){
   const q=s=>{s=String(s??'');return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
-  const h=['Mês','Verba','Classificação','Subclassificação','Fornecedor','Descritivo','Centro de custo (faturamento)','Centro de custo (destino)','Classe','Nº Sienge','Valor (R$)','Linha na planilha'];
-  return '﻿'+[h.join(';')].concat(rs.map(r=>[MES[r.m-1]+'/26',VB[r.vb],D.cls[r.cl],r.sb>=0?D.subs[r.sb]:'',D.forn[r.fo],r.ds,D.ccs[r.cc],r.ccd>=0?D.ccs[r.ccd]:'',r.fx?'C.fixo':'Outros',r.si,N2.format(r.v).replace(/\./g,''),r.row].map(q).join(';'))).join('\r\n');
+  const h=['Mês','Verba','Classificação','Fornecedor','Descritivo','Centro de custo (faturamento)','Centro de custo (destino)','Nº Sienge','Valor (R$)','Linha na planilha'];
+  return '﻿'+[h.join(';')].concat(rs.map(r=>[MES[r.m-1]+'/26',VB[r.vb],D.cls[r.cl],D.forn[r.fo],r.ds,D.ccs[r.cc],r.ccd>=0?D.ccs[r.ccd]:'',r.si,N2.format(r.v).replace(/\./g,''),r.row].map(q).join(';'))).join('\r\n');
 }
 async function saveCsv(rs,name){
   if(!DL)return;if(!rs.length){toast('Nenhum lançamento para exportar.');return;}
@@ -262,9 +264,9 @@ async function saveCsv(rs,name){
 $('#csvBtn').addEventListener('click',()=>{let rs=rows(pageWhere());if(ST.page==='lancamentos'&&LC.q)rs=rs.filter(r=>lcText(r).includes(LC.q));saveCsv(rs,`DUE_lancamentos_${slug(curSec().dataset.title)}_${MES[F.m0-1]}-${MES[F.m1-1]}_2026`);});
 
 /* ---------- tabela de lançamentos (compartilhada) ---------- */
-const lcText=r=>(r.ds+' '+D.forn[r.fo]+' '+(IMOB.get(r.fo)||'')+' '+r.si+' '+(r.sb>=0?D.subs[r.sb]:'')+' '+D.cls[r.cl]).toLowerCase();
+const lcText=r=>(r.ds+' '+D.forn[r.fo]+' '+(IMOB.get(r.fo)||'')+' '+r.si+' '+VB[r.vb]+' '+D.cls[r.cl]).toLowerCase();
 const lcHead=`<thead><tr><th class="l" data-k="m">Mês</th><th class="l">Verba</th><th class="l">Classificação</th><th class="l" data-k="fo" data-t="s">Fornecedor</th><th class="l">Descritivo</th><th class="l">Centro de custo</th><th data-k="v">Valor</th><th data-k="row">Sienge · linha</th></tr></thead>`;
-const lcRow=r=>`<tr><td class="l">${MES[r.m-1]}/26${r.dia?`<span class="sub2">data ${String(r.dia).padStart(2,'0')}/${String(r.m).padStart(2,'0')}</span>`:''}</td><td class="l"><span style="display:inline-flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${VBC[r.vb]};display:inline-block"></i>${VB[r.vb]}</span></td><td class="l" style="white-space:normal;min-width:130px;max-width:170px">${esc(D.cls[r.cl])}${r.sb>=0?`<span class="sub2">${esc(D.subs[r.sb])}</span>`:''}</td><td class="l" style="white-space:normal;min-width:150px;max-width:200px">${esc(fname(r.fo))}${IMOB.get(r.fo)?`<span class="sub2">${esc(D.forn[r.fo])}</span>`:''}</td><td class="wrap l" style="font-size:12.5px;color:var(--ink-2);min-width:220px;max-width:300px">${esc(r.ds)||'<span class="dim">—</span>'}</td><td class="l">${esc(D.ccs[r.cc])}${r.ccd>=0&&r.ccd!==r.cc?`<span class="sub2">destino: ${esc(D.ccs[r.ccd])}</span>`:''}<span class="sub2">${r.fx?'<span class="pill gold">C.fixo</span>':'Outros'}</span></td><td><b style="font-weight:600">${brl(r.v)}</b></td><td class="dim">${esc(r.si)||'—'}<span class="sub2">linha ${r.row}</span></td></tr>`;
+const lcRow=r=>`<tr><td class="l">${MES[r.m-1]}/26${r.dia?`<span class="sub2">data ${String(r.dia).padStart(2,'0')}/${String(r.m).padStart(2,'0')}</span>`:''}</td><td class="l"><span style="display:inline-flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:2px;background:${VBC[r.vb]};display:inline-block"></i>${VB[r.vb]}</span></td><td class="l" style="white-space:normal;min-width:130px;max-width:170px">${esc(D.cls[r.cl])}</td><td class="l" style="white-space:normal;min-width:150px;max-width:200px">${esc(fname(r.fo))}${IMOB.get(r.fo)?`<span class="sub2">${esc(D.forn[r.fo])}</span>`:''}</td><td class="wrap l" style="font-size:12.5px;color:var(--ink-2);min-width:220px;max-width:300px">${esc(r.ds)||'<span class="dim">—</span>'}</td><td class="l">${esc(D.ccs[r.cc])}${r.ccd>=0&&r.ccd!==r.cc?`<span class="sub2">destino: ${esc(D.ccs[r.ccd])}</span>`:''}</td><td><b style="font-weight:600">${brl(r.v)}</b></td><td class="dim">${esc(r.si)||'—'}<span class="sub2">linha ${r.row}</span></td></tr>`;
 const lcKey={m:r=>r.m*1e5+r.row,v:r=>r.v,fo:r=>D.forn[r.fo].toLowerCase(),row:r=>r.row};
 function lcSort(rs,st){const k=lcKey[st.k]||lcKey.m;return rs.slice().sort((a,b)=>{const x=k(a),y=k(b);return (x<y?-1:x>y?1:0)*st.d;});}
 
@@ -285,13 +287,13 @@ function renderDrill(scroll){
   let el=$('#drill');if(!el){el=document.createElement('section');el.id='drill';el.className='panel drill';el.setAttribute('aria-live','polite');}
   const host=anchor.parentElement.classList.contains('grid')?anchor.parentElement:anchor;
   if(host.nextElementSibling!==el)host.after(el);
-  const all=drillBase().filter(DR.where);const T=tot(all),fx=tot(all.filter(r=>r.fx));
+  const all=drillBase().filter(DR.where);const T=tot(all);const nfo=new Set(all.map(r=>r.fo)).size,tfo=group(all,'fo')[0];
   const nm=new Set(all.map(r=>r.m)).size;const mx=all.reduce((a,r)=>!a||r.v>a.v?r:a,null);
   const by=DR.key==='cl'||DR.key==='sicl'?'fo':'cl';
   el.innerHTML=`<div class="ph"><div><span class="dr-eye">Despesas cadastradas · ${esc(DR.eye)}</span><h2>${esc(DR.label)}<span class="dot">.</span></h2><p>${nLc(all.length)} · ${brl(T)} · ${esc(DR.scope||recorteTxt())}</p></div>
     <div class="ph-tools">${DR.apply?'<button class="btn-out" type="button" data-a="apply">Filtrar o painel por isto</button>':''}${DL&&all.length?'<button class="btn-out" type="button" data-a="csv">Exportar CSV</button>':''}<button class="ph-act" type="button" data-a="copy">${CAM}Copiar imagem</button><button class="dr-x" type="button" data-a="close" aria-label="Fechar quadrante">×</button></div></div>
     ${DR.note?`<p class="cnote">${DR.note}</p>`:''}
-    ${all.length?`<div class="dk"><div><span>Total</span><b>${brlC(T)}</b><small>${brl(T)}</small></div><div><span>Lançamentos</span><b>${N0.format(all.length)}</b><small>${nm} ${nm>1?'meses':'mês'} com despesa</small></div><div><span>Ticket médio</span><b>${brlC(T/all.length)}</b><small>maior: ${brlC(mx.v)} (${MES[mx.m-1]})</small></div><div><span>Custo fixo</span><b>${fx?brlC(fx):'—'}</b><small>${pct(fx/T,0)} do total</small></div></div>
+    ${all.length?`<div class="dk"><div><span>Total</span><b>${brlC(T)}</b><small>${brl(T)}</small></div><div><span>Lançamentos</span><b>${N0.format(all.length)}</b><small>${nm} ${nm>1?'meses':'mês'} com despesa</small></div><div><span>Ticket médio</span><b>${brlC(T/all.length)}</b><small>maior: ${brlC(mx.v)} (${MES[mx.m-1]})</small></div><div><span>Fornecedores</span><b>${N0.format(nfo)}</b><small>maior: ${esc(fname(tfo[0]))}</small></div></div>
     <div class="dr-grid">${DR.key==='m'?'<div><h3 class="dr-h">Por verba</h3><div class="bars" id="dr-vb"></div></div>':'<div><h3 class="dr-h">Por mês</h3><div class="legend" id="dr-leg"></div><div class="chart" id="dr-ch" style="min-height:150px"></div></div>'}<div><h3 class="dr-h">${by==='fo'?'Principais fornecedores':'Principais classificações'}</h3><div class="bars" id="dr-by"></div></div></div>
     <div class="dr-tools"><h3 class="dr-h" style="margin:0" id="dr-cnt"></h3><input class="srch" id="dr-q" type="search" placeholder="Buscar nestas despesas" aria-label="Buscar nas despesas" value="${esc(DR.q)}"></div>
     <div class="scroll"><table class="det" id="dr-tb"></table></div><div class="pager" id="dr-pg"></div>`:'<p class="empty">Nenhuma despesa cadastrada para esta opção no recorte atual.</p>'}`;
@@ -303,7 +305,7 @@ function renderDrill(scroll){
     hbars($('#dr-vb'),group(all,'vb').map(([i,v])=>({label:VB[i],total:v,c:VBC[i],val:`${brlC(v)}<small>${pct(v/T,0)}</small>`})));
   }
   if(all.length&&DR.key!=='m'){
-    const ms=DR.base==='all'?[1,2,3,4,5,6,7,8,9,10,11,12]:MS();const vbs=[0,1,2,3,4].filter(i=>all.some(r=>r.vb===i));
+    const ms=DR.base==='all'?[1,2,3,4,5,6,7,8,9,10,11,12]:MS();const vbs=ALLV.filter(i=>all.some(r=>r.vb===i));
     const ser=vbs.map(i=>({name:VB[i],color:VBC[i],vals:ms.map(m=>tot(all.filter(r=>r.m===m&&r.vb===i)))}));
     $('#dr-leg').innerHTML=vbs.length>1?ser.map(se=>`<span><i style="--c:${se.color}"></i>${se.name}</span>`).join(''):'';
     barChart($('#dr-ch'),{cats:ms.map(m=>({label:MES[m-1],dim:m>CUR})),series:ser,h:170,aria:'Despesas por mês',tip:i=>{const m=ms[i];let t=`<div class="tt">${MESL[m-1]}</div>`,s=0;ser.forEach(se=>{const v=se.vals[i];s+=v;if(v)t+=trow(se.color,se.name,brl(v));});return t+`<div class="tr tf"><span>Total</span><b>${brl(s)}</b></div>`;}});
@@ -314,7 +316,7 @@ function renderDrill(scroll){
     $('#dr-q').addEventListener('input',e=>{DR.q=e.target.value.trim().toLowerCase();DR.p=0;drillTable(all);});
     drillTable(all);
     const t1=g[0],nm1=t1?(by==='fo'?fname(t1[0]):D.cls[t1[0]]):'';
-    obs('drill',[`${nLc(all.length)} ${all.length===1?'soma':'somam'} <b>${brl(T)}</b>, ticket médio de ${brlC(T/all.length)}.`,t1&&g.length>1?`<b>${esc(nm1)}</b> concentra ${pct(t1[1]/T,0)} do valor.`:'',`Maior lançamento: ${brl(mx.v)} em ${MESL[mx.m-1]} (${esc(fname(mx.fo))}${mx.ds?': '+esc(mx.ds.slice(0,90))+(mx.ds.length>90?'…':''):''}).`,fx?`Custo fixo responde por ${pct(fx/T,0)}.`:'Nenhum lançamento classificado como custo fixo.']);
+    obs('drill',[`${nLc(all.length)} ${all.length===1?'soma':'somam'} <b>${brl(T)}</b>, ticket médio de ${brlC(T/all.length)}.`,t1&&g.length>1?`<b>${esc(nm1)}</b> concentra ${pct(t1[1]/T,0)} do valor.`:'',`Maior lançamento: ${brl(mx.v)} em ${MESL[mx.m-1]} (${esc(fname(mx.fo))}${mx.ds?': '+esc(mx.ds.slice(0,90))+(mx.ds.length>90?'…':''):''}).`]);
   }else obs('drill',['Nenhuma despesa cadastrada para esta opção no recorte atual.']);
   if(scroll)setTimeout(()=>el.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}),30);
 }
@@ -334,54 +336,52 @@ R.visao=()=>{
   const rs=rows(),T=tot(rs),ms=MS(),n=rs.length;
   const vms=ms.filter(VGV_OK),vgv=vms.reduce((s,m)=>s+D.vgv26[m-1],0);
   const dOv=tot(rs.filter(r=>VGV_OK(r.m)));const noVgv=F.cc.length||F.fo.length;
-  const fixo=tot(rs.filter(r=>r.fx)),real=tot(rs.filter(r=>r.m<=REAL)),cur=tot(rs.filter(r=>r.m===CUR)),prov=tot(rs.filter(r=>r.m>CUR));
+  const gvb=group(rs,'vb'),real=tot(rs.filter(r=>r.m<=REAL)),cur=tot(rs.filter(r=>r.m===CUR)),prov=tot(rs.filter(r=>r.m>CUR));
   kpis($('#v-kpis'),[
     {lead:1,k:'Despesa no recorte',v:brlC(T),s:`<b>${N0.format(n)}</b> lançamentos · média <b>${brlC(T/ms.length)}</b>/mês`},
     {k:'VGV do período',v:vms.length?brlC(vgv):'—',dash:!vms.length,s:vms.length?`aba 1 · ${rangeTxt(vms)}`:'sem VGV lançado no período'},
     {k:'Despesa ÷ VGV',v:(!noVgv&&vgv&&dOv)?pct(dOv/vgv,2):'—',dash:!!(noVgv||!vgv||!dOv),s:noVgv?'VGV não é aberto por centro de custo ou fornecedor':(vgv&&dOv)?`R$ 1 de despesa para <b>R$ ${N0.format(vgv/dOv)}</b> de VGV · ${rangeTxt(vms)}`:'sem VGV no período'},
-    {k:'Custo fixo',v:brlC(fixo),s:`${pct(T?fixo/T:0,0)} do recorte · contratos recorrentes`,share:T?fixo/T:0,c:'var(--petrol-750)'},
+    {k:'Maior verba',v:gvb.length?pct(gvb[0][1]/T,0):'—',dash:!gvb.length,s:gvb.length?`<b>${esc(VB[gvb[0][0]])}</b> · ${brlC(gvb[0][1])}`:'',share:gvb.length?gvb[0][1]/T:0,c:gvb.length?VBC[gvb[0][0]]:''},
     {k:`Realizado (${REAL_T||'—'})`,v:brlC(real),s:[CUR_T?`em curso (${CUR_T}) <b>${brlC(cur)}</b>`:'',PROV_T?`provisão <b>${brlC(prov)}</b>`:''].filter(Boolean).join(' · ')},
   ]);
-  obs('v-kpis',[n?`O recorte soma <b>${brl(T)}</b> em ${N0.format(n)} lançamentos (média de ${brlC(T/ms.length)} por mês).`:'Sem lançamentos no recorte.',(!noVgv&&vgv&&dOv)?`Nos meses com VGV lançado (${rangeTxt(vms)}), a despesa equivale a <b>${pct(dOv/vgv,2)}</b> do VGV: cada R$ 1 investido acompanhou R$ ${N0.format(vgv/dOv)} em vendas.`:'',fixo?`Custo fixo de ${brlC(fixo)} (${pct(fixo/T,0)}): parcela que roda independente de campanha.`:'',prov?`${cap(PROV_T)} já ${plv(PROV_T,'tem','têm')} ${brlC(prov)} provisionados.`:'']);
+  obs('v-kpis',[n?`O recorte soma <b>${brl(T)}</b> em ${N0.format(n)} lançamentos (média de ${brlC(T/ms.length)} por mês).`:'Sem lançamentos no recorte.',(!noVgv&&vgv&&dOv)?`Nos meses com VGV lançado (${rangeTxt(vms)}), a despesa equivale a <b>${pct(dOv/vgv,2)}</b> do VGV: cada R$ 1 investido acompanhou R$ ${N0.format(vgv/dOv)} em vendas.`:'',gvb.length>1?`${esc(VB[gvb[0][0]])} e ${esc(VB[gvb[1][0]])} somam ${pct((gvb[0][1]+gvb[1][1])/T,0)} do recorte.`:'',prov?`${cap(PROV_T)} já ${plv(PROV_T,'tem','têm')} ${brlC(prov)} provisionados.`:'']);
   const b=[];
   if(n){
     const gv=group(rs,'vb');if(gv.length>1)b.push(`<b>${VB[gv[0][0]]}</b> é a maior verba: ${brlC(gv[0][1])}, ${pct(gv[0][1]/T,0)} do recorte.`);
     const gc=group(rs,'cl');b.push(`Maior classificação: <b>${esc(D.cls[gc[0][0]])}</b>, ${brlC(gc[0][1])} (${pct(gc[0][1]/T,0)}).`);
     const gm=monthly(rs);let pk=ms[0];ms.forEach(m=>{if(gm[m-1]>gm[pk-1])pk=m;});if(ms.length>1)b.push(`Mês de maior despesa: <b>${MESL[pk-1]}</b>, ${brlC(gm[pk-1])}${pk>REAL?' (inclui valores provisionados)':''}.`);
     const gf=group(rs,'fo');if(gf.length>3){const t3=gf.slice(0,3);b.push(`Os 3 maiores fornecedores somam <b>${pct(t3.reduce((s,x)=>s+x[1],0)/T,0)}</b>: ${t3.map(x=>esc(fname(x[0]))).join(', ')}.`);}
-    const nfx=new Set(rs.filter(r=>r.fx).map(r=>r.fo)).size;if(fixo)b.push(`Custo fixo de <b>${brlC(fixo)}</b> em ${nfx} fornecedor${nfx>1?'es':''} com contrato recorrente.`);
     if(prov>0)b.push(`${cap(PROV_T)} já ${plv(PROV_T,'carrega','carregam')} <b>${brlC(prov)}</b> provisionados, sem VGV previsto na planilha.`);
-    const md=tot(rows({skip:'cl',where:r=>r.cl===CL_MD}));if(md&&b.length<6)b.push(`Marketing Digital soma <b>${brlC(md)}</b> quando se juntam todas as verbas (veja o quadro abaixo).`);
+    const md=tot(rows({skip:'vb',where:r=>DIG_VB.includes(r.vb)}));if(md&&b.length<6)b.push(`Marketing e mídia digital somam <b>${brlC(md)}</b> (verbas ${DIG_VB.map(i=>esc(VB[i])).join(' e ')}; veja o quadro abaixo).`);
   }else b.push('Nenhum lançamento no recorte. Ajuste ou limpe os filtros.');
   $('#v-read').innerHTML=b.slice(0,6).map(x=>`<li>${x}</li>`).join('');
 
   const mode=$('#v-evo-seg [aria-pressed="true"]').dataset.d;
   const cats=ms.map(m=>({label:MES[m-1],sub:stat(m),dim:m>CUR}));
   let series,line=null;
-  if(mode==='fx')series=[{name:'Custo fixo',color:'var(--petrol-750)',vals:ms.map(m=>tot(rs.filter(r=>r.m===m&&r.fx)))},{name:'Outros',color:'var(--s4)',vals:ms.map(m=>tot(rs.filter(r=>r.m===m&&!r.fx)))}];
-  else if(mode==='vgv'){series=[{name:'Despesa',color:'var(--s1)',vals:ms.map(m=>tot(rs.filter(r=>r.m===m)))}];line={name:'VGV',color:'var(--gold)',vals:ms.map(m=>VGV_OK(m)?D.vgv26[m-1]:null)};}
-  else{const vbs=[0,1,2,3,4].filter(i=>rs.some(r=>r.vb===i));series=vbs.map(i=>({name:VB[i],color:VBC[i],vals:ms.map(m=>tot(rs.filter(r=>r.m===m&&r.vb===i)))}));}
+  if(mode==='vgv'){series=[{name:'Despesa',color:'var(--s1)',vals:ms.map(m=>tot(rs.filter(r=>r.m===m)))}];line={name:'VGV',color:'var(--gold)',vals:ms.map(m=>VGV_OK(m)?D.vgv26[m-1]:null)};}
+  else{const vbs=ALLV.filter(i=>rs.some(r=>r.vb===i));series=vbs.map(i=>({name:VB[i],color:VBC[i],vals:ms.map(m=>tot(rs.filter(r=>r.m===m&&r.vb===i)))}));}
   $('#v-evo-leg').innerHTML=series.map(se=>`<span><i style="--c:${se.color}"></i>${se.name}</span>`).join('')+(line?`<span><i class="ln" style="--c:${line.color}"></i>VGV (eixo direito)</span>`:'');
-  $('#v-evo-sub').textContent=mode==='vgv'?'Despesa do recorte (eixo esquerdo) e VGV da aba 1 (eixo direito)'+(ms.some(m=>!VGV_OK(m))?' · '+rangeTxt(ms.filter(m=>!VGV_OK(m)))+' sem VGV lançado':''):mode==='fx'?'Despesa por mês: custo fixo × demais despesas':'Despesa por mês e verba';
+  $('#v-evo-sub').textContent=mode==='vgv'?'Despesa do recorte (eixo esquerdo) e VGV da aba 1 (eixo direito)'+(ms.some(m=>!VGV_OK(m))?' · '+rangeTxt(ms.filter(m=>!VGV_OK(m)))+' sem VGV lançado':''):'Despesa por mês e verba';
   barChart($('#v-evo'),{cats,series,line,h:270,aria:'Despesa mensal',tip:i=>{const m=ms[i];let t=`<div class="tt">${MESL[m-1]}${stat(m)?' · '+stat(m):''}</div>`;let s=0;series.forEach(se=>{const v=se.vals[i]||0;s+=v;if(v)t+=trow(se.color,se.name,brl(v));});if(series.length>1)t+=`<div class="tr tf"><span>Total</span><b>${brl(s)}</b></div>`;if(line){const lv=line.vals[i];t+=trow(line.color,'VGV',lv==null?'não lançado':brl(lv));if(lv)t+=`<div class="tn">Despesa ÷ VGV: ${pct(s/lv,2)}</div>`;}return t;}});
   { const gm=monthly(rs),rm=ms.filter(m=>m<=REAL&&gm[m-1]>0);
     const hi=rm.length?rm.reduce((a,m)=>gm[m-1]>gm[a-1]?m:a):null,lo=rm.length?rm.reduce((a,m)=>gm[m-1]<gm[a-1]?m:a):null;
     const avg=rm.length?rm.reduce((s,m)=>s+gm[m-1],0)/rm.length:0;
     const s1=rm.filter(m=>m<=6),s2=rm.filter(m=>m>=7);const a1=s1.length?s1.reduce((s,m)=>s+gm[m-1],0)/s1.length:0,a2=s2.length?s2.reduce((s,m)=>s+gm[m-1],0)/s2.length:0;
     const rat=vms.filter(m=>gm[m-1]>0).map(m=>[m,gm[m-1]/D.vgv26[m-1]]);const rb=rat.length?rat.reduce((a,x)=>x[1]<a[1]?x:a):null,rw=rat.length?rat.reduce((a,x)=>x[1]>a[1]?x:a):null;
-    obs('p-v-evo',[hi&&lo&&hi!==lo?`Pico de despesa em <b>${MESL[hi-1]}</b> (${brlC(gm[hi-1])}) e menor mês realizado em ${MESL[lo-1]} (${brlC(gm[lo-1])}).`:'',avg?`Média realizada de <b>${brlC(avg)}</b> por mês (${rangeTxt(rm)}).`:'',a1&&a2?`A média do 2º semestre realizado (${brlC(a2)}/mês) está ${a2>=a1?'+':''}${pct(a2/a1-1,0)} em relação ao 1º semestre (${brlC(a1)}/mês).`:'',cur&&avg?`Outubro, ainda em curso, soma ${brlC(cur)} (${pct(cur/avg,0)} da média realizada).`:'',prov?`Nov–dez provisionados: ${brlC(prov)}.`:'',mode==='vgv'&&rb&&rw&&rb[0]!==rw[0]?`Melhor relação despesa/VGV em ${MESL[rb[0]-1]} (${pct(rb[1],2)}) e pior em ${MESL[rw[0]-1]} (${pct(rw[1],2)}).`:'']);
+    obs('p-v-evo',[hi&&lo&&hi!==lo?`Pico de despesa em <b>${MESL[hi-1]}</b> (${brlC(gm[hi-1])}) e menor mês realizado em ${MESL[lo-1]} (${brlC(gm[lo-1])}).`:'',avg?`Média realizada de <b>${brlC(avg)}</b> por mês (${rangeTxt(rm)}).`:'',a1&&a2?`A média do 2º semestre realizado (${brlC(a2)}/mês) está ${a2>=a1?'+':''}${pct(a2/a1-1,0)} em relação ao 1º semestre (${brlC(a1)}/mês).`:'',cur&&avg&&CUR_T?`${MESL[CUR-1]}, ainda em curso, soma ${brlC(cur)} (${pct(cur/avg,0)} da média realizada).`:'',prov?`${cap(PROV_T)}: ${brlC(prov)} provisionados.`:'',mode==='vgv'&&rb&&rw&&rb[0]!==rw[0]?`Melhor relação despesa/VGV em ${MESL[rb[0]-1]} (${pct(rb[1],2)}) e pior em ${MESL[rw[0]-1]} (${pct(rw[1],2)}).`:'']);
   }
 
   const gv=new Map(group(rows({skip:'vb'}),'vb'));const Tall=[...gv.values()].reduce((a,b)=>a+b,0);
   const rsAll=rows({skip:'vb'});
-  let ch=`<div class="stack100" style="margin-bottom:10px">${[0,1,2,3,4].map(i=>F.vb.includes(i)&&gv.get(i)?`<i style="width:${(gv.get(i)/Tall*100).toFixed(2)}%;--c:${VBC[i]}"></i>`:'').join('')}</div><table class="cross"><thead><tr><th>Verba</th><th>Valor</th><th>Custo fixo</th></tr></thead><tbody>`;
-  [0,1,2,3,4].forEach(i=>{const v=gv.get(i)||0;const on=F.vb.includes(i);const fx=tot(rsAll.filter(r=>r.vb===i&&r.fx));ch+=`<tr class="pick" data-i="${i}" style="${on?'':'opacity:.45'}"><td><span class="fname"><i style="--c:${VBC[i]}"></i>${VB[i]}</span></td><td>${brlC(v)}<span class="pct">${pct(Tall?v/Tall:0,1)}</span></td><td>${brlC(fx)}<span class="pct">${pct(v?fx/v:0,0)} da verba</span></td></tr>`;});
-  ch+=`</tbody><tfoot><tr><td>Total</td><td>${brlC(T)}</td><td>${brlC(fixo)}</td></tr></tfoot></table><p class="cnote" style="margin-top:8px">Total considera só as verbas selecionadas.</p>`;
+  let ch=`<div class="stack100" style="margin-bottom:10px">${ALLV.map(i=>F.vb.includes(i)&&gv.get(i)?`<i style="width:${(gv.get(i)/Tall*100).toFixed(2)}%;--c:${VBC[i]}"></i>`:'').join('')}</div><table class="cross"><thead><tr><th>Verba</th><th>Valor</th><th>Lançamentos</th></tr></thead><tbody>`;
+  ALLV.forEach(i=>{const v=gv.get(i)||0;const on=F.vb.includes(i);const nl=rsAll.filter(r=>r.vb===i).length;ch+=`<tr class="pick" data-i="${i}" style="${on?'':'opacity:.45'}"><td><span class="fname"><i style="--c:${VBC[i]}"></i>${esc(VB[i])}</span></td><td>${brlC(v)}<span class="pct">${pct(Tall?v/Tall:0,1)}</span></td><td>${N0.format(nl)}<span class="pct">ticket ${nl?brlC(v/nl):'—'}</span></td></tr>`;});
+  ch+=`</tbody><tfoot><tr><td>Total</td><td>${brlC(T)}</td><td>${N0.format(rs.length)}</td></tr></tfoot></table><p class="cnote" style="margin-top:8px">Total considera só as verbas selecionadas.</p>`;
   $('#v-cross').innerHTML=ch;
-  $$('#v-cross tr.pick').forEach(tr=>tr.addEventListener('click',()=>{const i=+tr.dataset.i;F.vb=(F.vb.length===1&&F.vb[0]===i)?[0,1,2,3,4]:[i];changed();}));
-  { const sel=[0,1,2,3,4].filter(i=>F.vb.includes(i)&&gv.get(i));const srt=sel.slice().sort((a,b)=>gv.get(b)-gv.get(a));
-    const fxs=sel.map(i=>[i,tot(rsAll.filter(r=>r.vb===i&&r.fx))/gv.get(i)]).sort((a,b)=>b[1]-a[1]);
-    obs('p-v-cross',[srt.length>1?`<b>${VB[srt[0]]}</b> (${pct(gv.get(srt[0])/T,0)}) e <b>${VB[srt[1]]}</b> (${pct(gv.get(srt[1])/T,0)}) concentram ${pct((gv.get(srt[0])+gv.get(srt[1]))/T,0)} do recorte.`:'',fxs.length&&fxs[0][1]>0?`A verba com maior parcela fixa é ${VB[fxs[0][0]]} (${pct(fxs[0][1],0)} do que ela gasta).`:'',gv.get(2)&&F.vb.includes(2)?`Imobiliárias recebem ${pct(gv.get(2)/T,1)} do recorte; Sintta, ${pct((F.vb.includes(4)?gv.get(4)||0:0)/T,1)}.`:'']); }
+  $$('#v-cross tr.pick').forEach(tr=>tr.addEventListener('click',()=>{const i=+tr.dataset.i;F.vb=(F.vb.length===1&&F.vb[0]===i)?ALLV.slice():[i];changed();}));
+  { const sel=ALLV.filter(i=>F.vb.includes(i)&&gv.get(i));const srt=sel.slice().sort((a,b)=>gv.get(b)-gv.get(a));
+    const tks=sel.map(i=>{const n=rsAll.filter(r=>r.vb===i).length;return [i,n?gv.get(i)/n:0];}).sort((a,b)=>b[1]-a[1]);
+    obs('p-v-cross',[srt.length>1?`<b>${VB[srt[0]]}</b> (${pct(gv.get(srt[0])/T,0)}) e <b>${VB[srt[1]]}</b> (${pct(gv.get(srt[1])/T,0)}) concentram ${pct((gv.get(srt[0])+gv.get(srt[1]))/T,0)} do recorte.`:'',tks.length>1?`Maior ticket médio: ${esc(VB[tks[0][0]])} (${brlC(tks[0][1])} por lançamento).`:'']); }
 
   const gc=group(rs,'cl');
   hbars($('#v-cls'),gc.slice(0,8).map(([id,v])=>({label:D.cls[id],total:v,c:'var(--s1)',val:`${brlC(v)}<small>${pct(v/T,0)}</small>`,on:F.cl.includes(id),act:()=>toggleOnly('cl',id)})));
@@ -390,16 +390,17 @@ R.visao=()=>{
   hbars($('#v-cc'),gcc.slice(0,8).map(([id,v])=>({label:D.ccs[id],sub:D.ccTipo[id],total:v,c:D.ccTipo[id]==='Lançamento'?'var(--gold)':D.ccTipo[id]==='Institucional'?'var(--s4)':'var(--s1)',val:`${brlC(v)}<small>${pct(v/T,0)}</small>`,on:F.cc.includes(id),act:()=>toggleOnly('cc',id)})));
   { const byT=t=>tot(rs.filter(r=>D.ccTipo[r.cc]===t));obs('p-v-cc',[gcc.length?`<b>${D.ccs[gcc[0][0]]}</b> é o centro de custo com maior despesa (${pct(gcc[0][1]/T,0)}).`:'',T?`Por tipo: Lançamentos ${pct(byT('Lançamento')/T,0)}, Estoque ${pct(byT('Estoque')/T,0)}, Institucional ${pct(byT('Institucional')/T,0)}.`:'','O CC é o de faturamento da nota; contratos institucionais também caem em CCs de empreendimento.']); }
 
-  const md=rows({skip:'cl',where:r=>r.cl===CL_MD}),MDT=tot(md);
-  const vbs=[0,1,2,3,4].filter(i=>md.some(r=>r.vb===i));
+  const md=rows({skip:'vb',where:r=>DIG_VB.includes(r.vb)}),MDT=tot(md);
+  const vbs=DIG_VB.filter(i=>md.some(r=>r.vb===i));
   const mser=vbs.map(i=>({name:VB[i],color:VBC[i],vals:ms.map(m=>tot(md.filter(r=>r.m===m&&r.vb===i)))}));
   $('#v-md-leg').innerHTML=mser.map(se=>`<span><i style="--c:${se.color}"></i>${se.name}</span>`).join('');
   if(md.length)barChart($('#v-md'),{cats:ms.map(m=>({label:MES[m-1],dim:m>CUR})),series:mser,h:210,aria:'Marketing digital por mês',tip:i=>{const m=ms[i];let t=`<div class="tt">${MESL[m-1]}</div>`,s=0;mser.forEach(se=>{const v=se.vals[i];s+=v;if(v)t+=trow(se.color,se.name,brl(v));});return t+`<div class="tr tf"><span>Total</span><b>${brl(s)}</b></div>`;}});
-  else $('#v-md').innerHTML='<p class="empty">Sem Marketing Digital no recorte.</p>';
+  else $('#v-md').innerHTML='<p class="empty">Sem marketing ou mídia digital no recorte.</p>';
   const tf=group(md,'fo').slice(0,3);
-  $('#v-md-cross').innerHTML=md.length?`<table class="cross"><thead><tr><th>Verba</th><th>Marketing Digital</th></tr></thead><tbody>${vbs.map(i=>{const v=tot(md.filter(r=>r.vb===i));return `<tr><td><span class="fname"><i style="--c:${VBC[i]}"></i>${VB[i]}</span></td><td>${brlC(v)}<span class="pct">${pct(v/MDT,0)}</span></td></tr>`;}).join('')}</tbody><tfoot><tr><td>Total</td><td>${brlC(MDT)}</td></tr></tfoot></table><p class="cnote" style="margin-top:10px">Maiores fornecedores: ${tf.map(([f,v])=>`<b>${esc(fname(f))}</b> ${brlC(v)}`).join(' · ')}.</p>`:'';
-  { const trd=md.filter(r=>r.vb===1),zero=ms.filter(m=>m<=REAL&&F.vb.includes(1)&&!trd.some(r=>r.m===m));const vt=tot(trd),vi=tot(md.filter(r=>r.vb===2));const allc=tot(rows({skip:'cl'}));
-    obs('p-v-md',[MDT?`Marketing Digital consolidado: <b>${brl(MDT)}</b>${vt?`, ${pct(vt/MDT,0)} lançado como Trade`:''}${vi?` e ${pct(vi/MDT,0)} como verba de imobiliárias`:''}.`:'Sem Marketing Digital no recorte.',(()=>{const g=group(md,'sb');return g.length>1?`Por subclassificação: ${g.slice(0,3).map(([i,v])=>`${esc(i>=0?D.subs[i]:'sem sub')} ${pct(v/MDT,0)}`).join(', ')}.`:'';})(),zero.length?`Sem lançamento de Marketing Digital em Trade em ${rangeTxt(zero)}.`:'',MDT&&allc?`Marketing Digital representa ${pct(MDT/allc,0)} da despesa do recorte.`:'']); }
+  const mcl=group(md,'cl');
+  $('#v-md-cross').innerHTML=md.length?`<table class="cross"><thead><tr><th>Classificação</th><th>Valor</th></tr></thead><tbody>${mcl.map(([i,v])=>`<tr><td>${esc(D.cls[i])}</td><td>${brlC(v)}<span class="pct">${pct(v/MDT,0)}</span></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${brlC(MDT)}</td></tr></tfoot></table><p class="cnote" style="margin-top:10px">Maiores fornecedores: ${tf.map(([f,v])=>`<b>${esc(fname(f))}</b> ${brlC(v)}`).join(' · ')}.</p>`:'';
+  { const allc=tot(rows({skip:'vb'}));
+    obs('p-v-md',[MDT?`Marketing e mídia digital: <b>${brl(MDT)}</b>${vbs.length>1?` (${vbs.map(i=>`${esc(VB[i])} ${brlC(tot(md.filter(r=>r.vb===i)))}`).join(' · ')})`:''}.`:'Sem marketing ou mídia digital no recorte.',mcl.length>1?`Por classificação: ${mcl.slice(0,3).map(([i,v])=>`${esc(D.cls[i])} ${pct(v/MDT,0)}`).join(', ')}.`:'',MDT&&allc?`Representa ${pct(MDT/allc,0)} da despesa do recorte.`:'']); }
 };
 
 R.vgv=()=>{
@@ -415,7 +416,7 @@ R.vgv=()=>{
     {k:'Despesa 2026 no período',v:brlC(dAll),s:vms.length&&dOk?`${pct(dOk/v26,2)} do VGV nos meses com VGV`:'base do Financeiro'},
     {k:`2026 até ${YM.length?MES[YM[YM.length-1]-1].toLowerCase():'—'} × 2025 inteiro`,v:(ytd26>=full25?'+':'')+pct(ytd26/full25-1,1),s:`${brlC(ytd26)} em ${YM.length} ${YM.length===1?'mês':'meses'} × ${brlC(full25)} em 12`},
   ]);
-  obs('g-kpis',[vms.length?`VGV 2026 de <b>${brl(v26)}</b> contra ${brl(v25)} em 2025 nos mesmos meses (${var_>=0?'+':''}${pct(var_,1)}).`:'Sem VGV de 2026 lançado no período.',dOk&&v26?`A despesa de marketing desses meses (${brlC(dOk)}) equivale a ${pct(dOk/v26,2)} do VGV.`:'',`Até setembro, 2026 já superou o ano inteiro de 2025 em ${pct(ytd26/full25-1,1)}.`]);
+  obs('g-kpis',[vms.length?`VGV 2026 de <b>${brl(v26)}</b> contra ${brl(v25)} em 2025 nos mesmos meses (${var_>=0?'+':''}${pct(var_,1)}).`:'Sem VGV de 2026 lançado no período.',dOk&&v26?`A despesa de marketing desses meses (${brlC(dOk)}) equivale a ${pct(dOk/v26,2)} do VGV.`:'',YM.length?`Até ${MESL[YM[YM.length-1]-1].toLowerCase()}, 2026 ${ytd26>=full25?'já superou':'soma'} ${ytd26>=full25?`o ano inteiro de 2025 em ${pct(ytd26/full25-1,1)}`:`${pct(ytd26/full25,0)} do ano inteiro de 2025`}.`:'']);
   const dfi=ms.findIndex(m=>m>REAL);
   const lines=[{name:'Despesa 2026',color:'var(--gold)',vals:ms.map(m=>dm[m-1]),dashFrom:dfi<0?null:dfi}];
   if(DESP25)lines.push({name:'Despesa 2025',color:'var(--s3)',vals:ms.map(m=>DESP25[m-1])});
@@ -437,20 +438,20 @@ R.vgv=()=>{
 
 R['por-verba']=()=>{
   const rs=rows(),ms=MS(),T=tot(rs);
-  const vbs=[0,1,2,3,4].filter(i=>F.vb.includes(i));
+  const vbs=ALLV.filter(i=>F.vb.includes(i));
   heat($('#vb-heat'),{months:ms,head:'Verba',rows:vbs.map(i=>({label:VB[i],vals:monthly(rs.filter(r=>r.vb===i))}))});
   { const pk=vbs.map(i=>{const mm=monthly(rs.filter(r=>r.vb===i));let bm=ms[0];ms.forEach(m=>{if(mm[m-1]>mm[bm-1])bm=m;});return [i,bm,mm[bm-1]];}).filter(x=>x[2]>0);
     obs('p-vb-heat',[pk.length?'Pico de cada verba: '+pk.map(x=>`${VB[x[0]]} em ${MESL[x[1]-1].toLowerCase()} (${brlC(x[2])})`).join('; ')+'.':'',ms.some(m=>m>CUR)?`Valores de ${PROV_T} são provisão.`:'']); }
   const top=(arr,f)=>arr.length?`${esc(f(arr[0][0]))}<span class="sub2">${brlC(arr[0][1])}</span>`:'—';
-  let h=`<thead><tr><th class="l">Verba</th><th>Despesa</th><th>% do recorte</th><th>Custo fixo</th><th>Lançamentos</th><th class="l">Maior classificação</th><th class="l">Maior centro de custo</th><th class="l">Maior fornecedor</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th class="l">Verba</th><th>Despesa</th><th>% do recorte</th><th>Lançamentos</th><th>Ticket médio</th><th class="l">Maior classificação</th><th class="l">Maior centro de custo</th><th class="l">Maior fornecedor</th></tr></thead><tbody>`;
   const fxr=[];
-  vbs.forEach(i=>{const r=rs.filter(x=>x.vb===i),v=tot(r),fx=tot(r.filter(x=>x.fx));if(v)fxr.push([i,fx/v]);
-    h+=`<tr class="clk" data-id="${i}"><td class="l"><span class="nm" style="display:inline-flex;align-items:center;gap:7px"><i style="width:9px;height:9px;border-radius:3px;background:${VBC[i]};display:inline-block"></i>${VB[i]}</span></td><td>${brl(v)}</td><td>${pct(T?v/T:0,1)}</td><td>${brlC(fx)}<span class="sub2">${pct(v?fx/v:0,0)} da verba</span></td><td>${N0.format(r.length)}</td><td class="l">${top(group(r,'cl'),id=>D.cls[id])}</td><td class="l">${top(group(r,'cc'),id=>D.ccs[id])}</td><td class="l">${top(group(r,'fo'),fname)}</td></tr>`;});
-  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${brlC(tot(rs.filter(r=>r.fx)))}</td><td>${N0.format(rs.length)}</td><td></td><td></td><td></td></tr></tfoot>`;
+  vbs.forEach(i=>{const r=rs.filter(x=>x.vb===i),v=tot(r);if(r.length)fxr.push([i,v/r.length]);
+    h+=`<tr class="clk" data-id="${i}"><td class="l"><span class="nm" style="display:inline-flex;align-items:center;gap:7px"><i style="width:9px;height:9px;border-radius:3px;background:${VBC[i]};display:inline-block"></i>${VB[i]}</span></td><td>${brl(v)}</td><td>${pct(T?v/T:0,1)}</td><td>${N0.format(r.length)}</td><td>${r.length?brlC(v/r.length):'—'}</td><td class="l">${top(group(r,'cl'),id=>D.cls[id])}</td><td class="l">${top(group(r,'cc'),id=>D.ccs[id])}</td><td class="l">${top(group(r,'fo'),fname)}</td></tr>`;});
+  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${N0.format(rs.length)}</td><td>${rs.length?brlC(T/rs.length):'—'}</td><td></td><td></td><td></td></tr></tfoot>`;
   $('#vb-tb').innerHTML=h;
   bindRows($('#vb-tb'),id=>{const i=+id;openDrill({anchor:'p-vb-tb',key:'vb',id:i,eye:'Verba',label:VB[i],where:r=>r.vb===i,apply:()=>{F.vb=[i];changed();}});});
   fxr.sort((a,b)=>b[1]-a[1]);
-  obs('p-vb-tb',[fxr.length>1?`Maior parcela fixa: <b>${VB[fxr[0][0]]}</b> (${pct(fxr[0][1],0)}); menor: ${VB[fxr[fxr.length-1][0]]} (${pct(fxr[fxr.length-1][1],0)}).`:'',rs.length?`Ticket médio do recorte: ${brlC(T/rs.length)} por lançamento.`:'']);
+  obs('p-vb-tb',[fxr.length>1?`Maior ticket médio: <b>${esc(VB[fxr[0][0]])}</b> (${brlC(fxr[0][1])} por lançamento); menor: ${esc(VB[fxr[fxr.length-1][0]])} (${brlC(fxr[fxr.length-1][1])}).`:'',rs.length?`Ticket médio do recorte: ${brlC(T/rs.length)} por lançamento.`:'']);
 };
 
 const VE=new Map(D.vendasEmp.map(e=>[e.nome,e])),VO=new Map(D.verbasEmp.map(e=>[e.nome,e]));
@@ -462,15 +463,15 @@ R['centro-custo']=()=>{
   heat($('#cc-heat'),{months:ms,head:'Centro de custo',rows:hr,onPick:id=>toggleOnly('cc',+id)});
   { const act=[...g.keys()].map(i=>[i,new Set(rs.filter(r=>r.cc===i).map(r=>r.m)).size]).sort((a,b)=>b[1]-a[1]);const small=[...g].filter(([,v])=>v/T<.01).length;
     obs('p-cc-heat',[g.size?`<b>${D.ccs[[...g.keys()][0]]}</b> concentra ${pct([...g.values()][0]/T,0)} da despesa do recorte.`:'',act.length?`${D.ccs[act[0][0]]} tem despesa em ${act[0][1]} de ${ms.length} meses, o CC mais recorrente.`:'',small?`${small} centros de custo ficam abaixo de 1% do recorte cada.`:'']); }
-  let h=`<thead><tr><th class="l">Centro de custo</th><th>Despesa</th><th>%</th><th>Custo fixo</th><th class="l">Maior classificação</th><th>VGV ${EMP_T}</th><th>UH</th><th>Verba</th><th>Utilizado</th><th>% utilizado</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th class="l">Centro de custo</th><th>Despesa</th><th>%</th><th class="l">Maior classificação</th><th>VGV ${EMP_T}</th><th>UH</th><th>Verba</th><th>Utilizado</th><th>% utilizado</th></tr></thead><tbody>`;
   const exc=[];
-  [...g.keys()].forEach(i=>{const n=D.ccs[i],r=rs.filter(x=>x.cc===i),v=g.get(i),fx=tot(r.filter(x=>x.fx)),gc=group(r,'cl')[0];const e=VE.get(n),o=VO.get(n);
+  [...g.keys()].forEach(i=>{const n=D.ccs[i],r=rs.filter(x=>x.cc===i),v=g.get(i),gc=group(r,'cl')[0];const e=VE.get(n),o=VO.get(n);
     const ev=e?e.vgv.slice(0,EMP_LAST).reduce((a,c)=>a+c,0):0,uh=e?e.uh.slice(0,EMP_LAST).reduce((a,c)=>a+c,0):0;const p=o&&o.verba?o.usado/o.verba:null;if(p>1)exc.push(n);
-    h+=`<tr class="clk" data-id="${i}"><td class="l"><span class="nm">${esc(n)}</span><span class="sub2">${D.ccTipo[i]}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td>${fx?brlC(fx):'—'}</td><td class="l">${gc?esc(D.cls[gc[0]])+`<span class="sub2">${brlC(gc[1])}</span>`:'—'}</td><td>${ev?brlC(ev):'—'}</td><td>${uh||'—'}</td><td>${o&&o.verba?brlC(o.verba):'—'}</td><td>${o?brlC(o.usado):'—'}</td><td>${p==null?(o?'<span class="pill">sem verba</span>':'—'):`<span class="pill ${p>1?'bad':p>=.7?'warn':'good'}">${pct(p,0)}</span>`}</td></tr>`;});
-  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${brlC(tot(rs.filter(r=>r.fx)))}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>`;
+    h+=`<tr class="clk" data-id="${i}"><td class="l"><span class="nm">${esc(n)}</span><span class="sub2">${D.ccTipo[i]}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td class="l">${gc?esc(D.cls[gc[0]])+`<span class="sub2">${brlC(gc[1])}</span>`:'—'}</td><td>${ev?brlC(ev):'—'}</td><td>${uh||'—'}</td><td>${o&&o.verba?brlC(o.verba):'—'}</td><td>${o?brlC(o.usado):'—'}</td><td>${p==null?(o?'<span class="pill">sem verba</span>':'—'):`<span class="pill ${p>1?'bad':p>=.7?'warn':'good'}">${pct(p,0)}</span>`}</td></tr>`;});
+  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>`;
   $('#cc-tb').innerHTML=h;
   bindRows($('#cc-tb'),id=>{const i=+id;openDrill({anchor:'p-cc-tb',key:'cc',id:i,eye:'Centro de custo',label:D.ccs[i],where:r=>r.cc===i,note:CC_NOTE,apply:()=>{F.cc=[i];changed();}});});
-  obs('p-cc-tb',[exc.length?`Com verba já excedida na aba 6 e despesa no recorte: ${exc.map(esc).join(', ')}.`:'Nenhum CC do recorte com verba excedida na aba 6.','Verba e utilizado vêm da aba 6 (acumulado, digitado); VGV jan–jun vem da abertura por empreendimento.']);
+  obs('p-cc-tb',[exc.length?`Com verba já excedida na aba 6 e despesa no recorte: ${exc.map(esc).join(', ')}.`:'Nenhum CC do recorte com verba excedida na aba 6.','Verba e utilizado vêm da aba 6 (acumulado, digitado); VGV vem da abertura por empreendimento (aba 6).']);
 };
 
 let SELCL=null,CLN=15;
@@ -481,7 +482,7 @@ R.classificacao=()=>{
   const shown=g.slice(0,CLN),rest=g.slice(CLN);
   const hr=shown.map(([id])=>({id,label:D.cls[id],vals:monthly(rs.filter(r=>r.cl===id)),pick:1,sel:id===SELCL}));
   if(rest.length){const ids=new Set(rest.map(x=>x[0]));hr.push({label:`Demais ${rest.length} classificações`,vals:monthly(rs.filter(r=>ids.has(r.cl)))});}
-  $('#cl-sub').textContent=`R$ mil · ${g.length} classificações no recorte · clique numa linha para ver as subclassificações`;
+  $('#cl-sub').textContent=`R$ mil · ${g.length} classificações no recorte · clique numa linha para ver o detalhe`;
   heat($('#cl-heat'),{months:ms,head:'Classificação',rows:hr,onPick:id=>{if(id!==''){SELCL=+id;R.classificacao();renderDrill(false);addCopies();}}});
   { const rec=g.map(([id])=>[id,new Set(rs.filter(r=>r.cl===id).map(r=>r.m)).size]).sort((a,b)=>b[1]-a[1]);
     obs('p-cl-heat',[g.length?`${g.length} classificações no recorte; as 5 maiores somam <b>${pct(g.slice(0,5).reduce((s,x)=>s+x[1],0)/T,0)}</b>.`:'',rec.length?`Mais recorrentes: ${rec.slice(0,3).map(x=>`${esc(D.cls[x[0]])} (${x[1]} meses)`).join(', ')}.`:'']); }
@@ -490,20 +491,18 @@ R.classificacao=()=>{
   else{
     const r=rs.filter(x=>x.cl===SELCL),v=tot(r);const on=F.cl.length===1&&F.cl[0]===SELCL;
     det.innerHTML=`<div class="ph"><div><h2>${esc(D.cls[SELCL])}<span class="dot">.</span></h2><p>${brl(v)} · ${pct(v/T,1)} do recorte · ${N0.format(r.length)} lançamentos</p></div><button class="btn-out" type="button" id="cl-flt">${on?'Remover filtro':'Filtrar o painel'}</button></div>
-      <div class="stack100">${[0,1,2,3,4].map(i=>{const x=tot(r.filter(q=>q.vb===i));return x?`<i style="width:${(x/v*100).toFixed(2)}%;--c:${VBC[i]}" title="${VB[i]} ${brl(x)}"></i>`:'';}).join('')}</div>
-      <div class="legend">${[0,1,2,3,4].map(i=>{const x=tot(r.filter(q=>q.vb===i));return x?`<span><i style="--c:${VBC[i]}"></i>${VB[i]} ${brlC(x)}</span>`:'';}).join('')}</div>
-      <h3 class="dr-h" style="margin-top:6px">Subclassificações</h3><div class="bars" id="cl-sb"></div>
+      <div class="stack100">${ALLV.map(i=>{const x=tot(r.filter(q=>q.vb===i));return x?`<i style="width:${(x/v*100).toFixed(2)}%;--c:${VBC[i]}" title="${VB[i]} ${brl(x)}"></i>`:'';}).join('')}</div>
+      <div class="legend">${ALLV.map(i=>{const x=tot(r.filter(q=>q.vb===i));return x?`<span><i style="--c:${VBC[i]}"></i>${VB[i]} ${brlC(x)}</span>`:'';}).join('')}</div>
       <h3 class="dr-h" style="margin-top:6px">Principais fornecedores</h3><div class="bars" id="cl-fo"></div>`;
-    const gs=group(r,'sb'),gf=group(r,'fo');
-    hbars($('#cl-sb'),gs.slice(0,8).map(([id,x])=>({label:id>=0?D.subs[id]:'(sem subclassificação)',total:x,c:'var(--s1)',val:`${brlC(x)}<small>${pct(x/v,0)}</small>`})));
+    const gs=group(r,'vb'),gf=group(r,'fo');
     hbars($('#cl-fo'),gf.slice(0,6).map(([id,x])=>({label:fname(id),total:x,c:'var(--gold)',val:`${brlC(x)}<small>${pct(x/v,0)}</small>`,act:()=>toggleOnly('fo',id)})));
     $('#cl-flt').addEventListener('click',()=>toggleOnly('cl',SELCL));
-    obs('cl-det',[`${esc(D.cls[SELCL])}: ${brl(v)} em ${r.length} lançamentos.`,gs.length?`Subclassificação principal: <b>${esc(gs[0][0]>=0?D.subs[gs[0][0]]:'sem subclassificação')}</b> (${pct(gs[0][1]/v,0)}).`:'',gf.length?`Fornecedor principal: <b>${esc(fname(gf[0][0]))}</b> (${pct(gf[0][1]/v,0)}).`:'']);
+    obs('cl-det',[`${esc(D.cls[SELCL])}: ${brl(v)} em ${r.length} lançamentos.`,gs.length?`Verba principal: <b>${esc(VB[gs[0][0]])}</b> (${pct(gs[0][1]/v,0)}).`:'',gf.length?`Fornecedor principal: <b>${esc(fname(gf[0][0]))}</b> (${pct(gf[0][1]/v,0)}).`:'']);
   }
-  const S=g.map(([id,v])=>{const r=rs.filter(x=>x.cl===id);return {id,v,n:r.length,fx:tot(r.filter(x=>x.fx)),fo:group(r,'fo')[0],cc:group(r,'cc')[0]};});
-  let h=`<thead><tr><th class="l">Classificação</th><th>Despesa</th><th>%</th><th>Lançamentos</th><th>Ticket médio</th><th>Custo fixo</th><th class="l">Maior fornecedor</th><th class="l">Maior centro de custo</th></tr></thead><tbody>`;
-  h+=S.map(s=>`<tr class="clk" data-id="${s.id}"><td class="l"><span class="nm">${esc(D.cls[s.id])}</span></td><td>${brl(s.v)}</td><td>${pct(s.v/T,1)}</td><td>${s.n}</td><td>${brlC(s.v/s.n)}</td><td>${s.fx?brlC(s.fx):'—'}</td><td class="l">${esc(fname(s.fo[0]))}<span class="sub2">${brlC(s.fo[1])}</span></td><td class="l">${esc(D.ccs[s.cc[0]])}<span class="sub2">${brlC(s.cc[1])}</span></td></tr>`).join('')||'<tr><td class="l dim" colspan="8">Sem lançamentos no recorte.</td></tr>';
-  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${N0.format(rs.length)}</td><td>${rs.length?brlC(T/rs.length):'—'}</td><td>${brlC(tot(rs.filter(r=>r.fx)))}</td><td></td><td></td></tr></tfoot>`;
+  const S=g.map(([id,v])=>{const r=rs.filter(x=>x.cl===id);return {id,v,n:r.length,vb:group(r,'vb')[0],fo:group(r,'fo')[0],cc:group(r,'cc')[0]};});
+  let h=`<thead><tr><th class="l">Classificação</th><th>Despesa</th><th>%</th><th>Lançamentos</th><th>Ticket médio</th><th class="l">Verba principal</th><th class="l">Maior fornecedor</th><th class="l">Maior centro de custo</th></tr></thead><tbody>`;
+  h+=S.map(s=>`<tr class="clk" data-id="${s.id}"><td class="l"><span class="nm">${esc(D.cls[s.id])}</span></td><td>${brl(s.v)}</td><td>${pct(s.v/T,1)}</td><td>${s.n}</td><td>${brlC(s.v/s.n)}</td><td class="l">${esc(VB[s.vb[0]])}<span class="sub2">${pct(s.vb[1]/s.v,0)}</span></td><td class="l">${esc(fname(s.fo[0]))}<span class="sub2">${brlC(s.fo[1])}</span></td><td class="l">${esc(D.ccs[s.cc[0]])}<span class="sub2">${brlC(s.cc[1])}</span></td></tr>`).join('')||'<tr><td class="l dim" colspan="8">Sem lançamentos no recorte.</td></tr>';
+  h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${N0.format(rs.length)}</td><td>${rs.length?brlC(T/rs.length):'—'}</td><td></td><td></td><td></td></tr></tfoot>`;
   $('#cl-tb').innerHTML=h;
   bindRows($('#cl-tb'),id=>{const i=+id;openDrill({anchor:'p-cl-tb',key:'cl',id:i,eye:'Classificação',label:D.cls[i],where:r=>r.cl===i,apply:()=>{F.cl=[i];changed();}});});
   { const tk=S.slice().sort((a,c)=>c.v/c.n-a.v/a.n)[0],mn=S.slice().sort((a,c)=>c.n-a.n)[0];
@@ -514,7 +513,7 @@ const FO={k:'v',d:-1,q:'',p:0};
 $('#fo-q').addEventListener('input',e=>{FO.q=e.target.value.trim().toLowerCase();FO.p=0;R.fornecedores();renderDrill(false);});
 R.fornecedores=()=>{
   const rs=rows(),T=tot(rs);const S=new Map();
-  for(const r of rs){let s=S.get(r.fo);if(!s){s={id:r.fo,v:0,n:0,ms:new Set(),vb:new Map(),cc:new Map(),fx:0};S.set(r.fo,s);}s.v+=r.v;s.n++;s.ms.add(r.m);s.vb.set(r.vb,(s.vb.get(r.vb)||0)+r.v);s.cc.set(r.cc,(s.cc.get(r.cc)||0)+r.v);if(r.fx)s.fx+=r.v;}
+  for(const r of rs){let s=S.get(r.fo);if(!s){s={id:r.fo,v:0,n:0,ms:new Set(),vb:new Map(),cc:new Map()};S.set(r.fo,s);}s.v+=r.v;s.n++;s.ms.add(r.m);s.vb.set(r.vb,(s.vb.get(r.vb)||0)+r.v);s.cc.set(r.cc,(s.cc.get(r.cc)||0)+r.v);}
   const arr=[...S.values()].map(s=>({...s,name:D.forn[s.id],alias:IMOB.get(s.id)||'',t:s.v/s.n,nm:s.ms.size,vbm:[...s.vb].sort((a,c)=>c[1]-a[1])[0][0],ccm:[...s.cc].sort((a,c)=>c[1]-a[1])[0][0]})).sort((a,c)=>c.v-a.v);
   const t10=arr.slice(0,10).reduce((s,x)=>s+x.v,0);
   kpis($('#fo-kpis'),[
@@ -525,16 +524,16 @@ R.fornecedores=()=>{
   ]);
   const one=arr.filter(s=>s.n===1);const onev=one.reduce((s,x)=>s+x.v,0);
   obs('fo-kpis',[arr.length?`Os 10 maiores fornecedores concentram <b>${pct(t10/T,0)}</b> do recorte.`:'',one.length?`${one.length} fornecedores têm um único lançamento e somam ${brlC(onev)} (${pct(onev/T,0)}).`:'']);
-  $('#fo-leg').innerHTML=[0,1,2,3,4].filter(i=>rs.some(r=>r.vb===i)).map(i=>`<span><i style="--c:${VBC[i]}"></i>${VB[i]}</span>`).join('');
-  hbars($('#fo-bars'),arr.slice(0,15).map(s=>({label:s.alias||s.name,sub:s.alias?s.name:D.cls[group(rs.filter(r=>r.fo===s.id),'cl')[0][0]],total:s.v,segs:[0,1,2,3,4].map(i=>({v:s.vb.get(i)||0,c:VBC[i]})),val:`${brlC(s.v)}<small>${pct(s.v/T,0)}</small>`,on:F.fo.includes(s.id),act:()=>toggleOnly('fo',s.id)})));
+  $('#fo-leg').innerHTML=ALLV.filter(i=>rs.some(r=>r.vb===i)).map(i=>`<span><i style="--c:${VBC[i]}"></i>${VB[i]}</span>`).join('');
+  hbars($('#fo-bars'),arr.slice(0,15).map(s=>({label:s.alias||s.name,sub:s.alias?s.name:D.cls[group(rs.filter(r=>r.fo===s.id),'cl')[0][0]],total:s.v,segs:ALLV.map(i=>({v:s.vb.get(i)||0,c:VBC[i]})),val:`${brlC(s.v)}<small>${pct(s.v/T,0)}</small>`,on:F.fo.includes(s.id),act:()=>toggleOnly('fo',s.id)})));
   obs('p-fo-bars',[arr.length?`<b>${esc(arr[0].alias||arr[0].name)}</b> lidera com ${pct(arr[0].v/T,1)} do recorte${/DUE EMPREENDIMENTOS/.test(arr[0].name)?' (reembolso de faturas Meta lançado em nome da DUE Empreendimentos)':''}.`:'',arr.length>=15?`O top 15 soma ${pct(arr.slice(0,15).reduce((s,x)=>s+x.v,0)/T,0)} do recorte.`:'']);
   let list=arr;if(FO.q)list=arr.filter(s=>(s.name+' '+s.alias).toLowerCase().includes(FO.q));
   const key={v:s=>s.v,n:s=>s.n,t:s=>s.t,nm:s=>s.nm,name:s=>(s.alias||s.name).toLowerCase()}[FO.k];
   list=list.slice().sort((a,c)=>{const x=key(a),y=key(c);return (x<y?-1:x>y?1:0)*FO.d;});
   const size=25,pages=Math.max(1,Math.ceil(list.length/size));if(FO.p>=pages)FO.p=pages-1;
   const pg=list.slice(FO.p*size,FO.p*size+size);
-  let h=`<thead><tr><th class="l" data-k="name" data-t="s">Fornecedor</th><th data-k="v">Total</th><th>%</th><th data-k="n">Lançamentos</th><th data-k="t">Ticket médio</th><th data-k="nm">Meses</th><th class="l">Verba principal</th><th class="l">Centro de custo principal</th><th class="l">Classe</th></tr></thead><tbody>`;
-  h+=pg.map(s=>`<tr class="clk" data-id="${s.id}"><td class="l"><span class="nm">${esc(s.alias||s.name)}</span>${s.alias?`<span class="sub2">${esc(s.name)}</span>`:''}</td><td>${brl(s.v)}</td><td>${pct(s.v/T,1)}</td><td>${s.n}</td><td>${brlC(s.t)}</td><td>${s.nm}</td><td class="l">${VB[s.vbm]}</td><td class="l">${esc(D.ccs[s.ccm])}</td><td class="l">${s.fx?`<span class="pill gold">custo fixo ${pct(s.fx/s.v,0)}</span>`:'<span class="dim">outros</span>'}</td></tr>`).join('')||'<tr><td class="l dim" colspan="9">Nenhum fornecedor encontrado.</td></tr>';
+  let h=`<thead><tr><th class="l" data-k="name" data-t="s">Fornecedor</th><th data-k="v">Total</th><th>%</th><th data-k="n">Lançamentos</th><th data-k="t">Ticket médio</th><th data-k="nm">Meses</th><th class="l">Verba principal</th><th class="l">Centro de custo principal</th></tr></thead><tbody>`;
+  h+=pg.map(s=>`<tr class="clk" data-id="${s.id}"><td class="l"><span class="nm">${esc(s.alias||s.name)}</span>${s.alias?`<span class="sub2">${esc(s.name)}</span>`:''}</td><td>${brl(s.v)}</td><td>${pct(s.v/T,1)}</td><td>${s.n}</td><td>${brlC(s.t)}</td><td>${s.nm}</td><td class="l">${esc(VB[s.vbm])}</td><td class="l">${esc(D.ccs[s.ccm])}</td></tr>`).join('')||'<tr><td class="l dim" colspan="8">Nenhum fornecedor encontrado.</td></tr>';
   $('#fo-tb').innerHTML=h+'</tbody>';
   sortable($('#fo-tb'),FO,()=>{FO.p=0;R.fornecedores();renderDrill(false);});
   bindRows($('#fo-tb'),id=>{const i=+id;openDrill({anchor:'p-fo-tb',key:'fo',id:i,eye:'Fornecedor',label:fname(i),where:r=>r.fo===i,note:IMOB.get(i)?esc(D.forn[i]):'',apply:()=>{F.fo=[i];changed();}});});
@@ -543,27 +542,6 @@ R.fornecedores=()=>{
   obs('p-fo-tb',[`${N0.format(list.length)} fornecedores${FO.q?' na busca':''}; a tabela mostra ${pg.length} por página.`,freq?`${freq} fornecedores aparecem em 9 meses ou mais do recorte.`:'']);
 };
 
-R['custo-fixo']=()=>{
-  const rs=rows(pageWhere()),ms=MS(),T=tot(rs);const g=group(rs,'fo');
-  const prov=tot(rs.filter(r=>r.m>CUR)),nm=ms.length;const all=tot(rows({skip:'fx'}));
-  kpis($('#cf-kpis'),[
-    {lead:1,k:'Custo fixo no recorte',v:brlC(T),s:`${pct(all?T/all:0,0)} da despesa do mesmo recorte`},
-    {k:'Média mensal',v:brlC(T/nm),s:`${nm} ${nm>1?'meses':'mês'} · ${rangeTxt(ms)}`},
-    {k:'Fornecedores',v:N0.format(g.length),s:'com contrato recorrente'},
-    {k:`Já provisionado ${PROV_T||'—'}`,v:prov?brlC(prov):'—',dash:!prov,s:'parte fixa do que está provisionado'},
-  ]);
-  obs('cf-kpis',[`Custo fixo de <b>${brl(T)}</b>, ${pct(all?T/all:0,0)} da despesa do recorte, média de ${brlC(T/nm)} por mês.`,prov?`${brlC(prov)} da provisão de ${PROV_T} são contratos fixos.`:'']);
-  heat($('#cf-heat'),{months:ms,head:'Fornecedor',rows:g.map(([id])=>{const r=rs.filter(x=>x.fo===id);const c=group(r,'cl')[0][0];return {id,label:fname(id),title:`${D.forn[id]} · ${D.cls[c]}`,vals:monthly(r),pick:1,sel:F.fo.includes(id)};}),onPick:id=>toggleOnly('fo',+id)});
-  obs('p-cf-heat',[g.length>=3?`Os 3 maiores contratos (${g.slice(0,3).map(x=>esc(fname(x[0]))).join(', ')}) somam <b>${pct(g.slice(0,3).reduce((s,x)=>s+x[1],0)/T,0)}</b> do custo fixo.`:'']);
-  const S=g.map(([id,v])=>{const r=rs.filter(x=>x.fo===id);const mset=new Set(r.map(x=>x.m));return {id,v,n:r.length,nm:mset.size,cl:group(r,'cl')[0][0],cc:group(r,'cc')[0][0]};});
-  let h=`<thead><tr><th class="l">Fornecedor</th><th class="l">Classificação principal</th><th>Total</th><th>% do fixo</th><th>Meses</th><th>Média por mês ativo</th><th class="l">Centro de custo principal</th></tr></thead><tbody>`;
-  h+=S.map(s=>`<tr class="clk" data-id="${s.id}"><td class="l"><span class="nm">${esc(fname(s.id))}</span></td><td class="l">${esc(D.cls[s.cl])}</td><td>${brl(s.v)}</td><td>${pct(s.v/T,1)}</td><td>${s.nm}</td><td>${brlC(s.v/s.nm)}</td><td class="l">${esc(D.ccs[s.cc])}</td></tr>`).join('')||'<tr><td class="l dim" colspan="7">Sem custo fixo no recorte.</td></tr>';
-  h+=`</tbody><tfoot><tr><td class="l">Total</td><td></td><td>${brl(T)}</td><td>100%</td><td></td><td></td><td></td></tr></tfoot>`;
-  $('#cf-tb').innerHTML=h;
-  bindRows($('#cf-tb'),id=>{const i=+id;openDrill({anchor:'p-cf-tb',key:'fo',id:i,eye:'Contrato fixo',label:fname(i),where:r=>r.fo===i,apply:()=>{F.fo=[i];changed();}});});
-  { const allm=S.filter(s=>s.nm===ms.length);const big=S.slice().sort((a,c)=>c.v/c.nm-a.v/a.nm).slice(0,3);
-    obs('p-cf-tb',[allm.length?`${allm.length} contratos têm lançamento em todos os ${ms.length} meses do período.`:'',big.length?`Maiores mensalidades médias: ${big.map(s=>`${esc(fname(s.id))} (${brlC(s.v/s.nm)})`).join(', ')}.`:'']); }
-};
 
 R['vendas-emp']=()=>{
   const ms=MS().filter(m=>m<=EMP_LAST);const E=D.vendasEmp.filter(e=>e.vendas>0);
@@ -623,8 +601,8 @@ R.orcamento=()=>{
   obs('p-or-tb',['Verba e utilizado são valores digitados na aba 6, sem ligação com a base de lançamentos.']);
 };
 
-const IMC=group(L.filter(r=>r.vb===2),'cl').slice(0,3).map(([id],k)=>[id,['var(--s1)','var(--s3)','var(--s2)'][k]]);
-const OUT='Outros fornecedores da verba';
+const IMC=group(L.filter(r=>IMOB_CL.includes(r.cl)),'cl').slice(0,4).map(([id],k)=>[id,['var(--s1)','var(--s3)','var(--s2)','var(--s5)'][k]]);
+const OUT='Outros fornecedores';
 R.imobiliarias=()=>{
   const rs=rows(),ms=MS(),T=tot(rs);
   const pn=r=>IMOB.get(r.fo)||OUT;
@@ -632,31 +610,32 @@ R.imobiliarias=()=>{
   const vms=ms.filter(m=>D.vgvImob[m-1]>0),vi=vms.reduce((s,m)=>s+D.vgvImob[m-1],0),inv=tot(rs.filter(r=>vms.includes(r.m)));
   const sub=F.fo.length||F.cc.length||F.cl.length;
   kpis($('#im-kpis'),[
-    {lead:1,k:'Investimento em imobiliárias',v:brlC(T),s:`verba Imobiliária · ${N0.format(rs.length)} lançamentos`},
+    {lead:1,k:'Investimento em imobiliárias',v:brlC(T),s:`classificações de imobiliária · ${N0.format(rs.length)} lançamentos`},
     {k:'Parceiros com investimento',v:N0.format(parts.length),s:'imobiliárias e corretoras'},
     {k:'Maior parceiro',v:parts.length?pct(parts[0][1]/T,0):'—',dash:!parts.length,s:parts.length?`<b>${esc(parts[0][0])}</b> · ${brlC(parts[0][1])}`:''},
     {k:'VGV via imobiliárias',v:vms.length?brlC(vi):'—',dash:!vms.length,s:vms.length?`aba 4 · ${rangeTxt(vms)}${IMOB_LAST?` (lançado até ${MES[IMOB_LAST-1].toLowerCase()})`:''}`:'sem VGV de imobiliárias no período'},
     {k:'VGV ÷ investimento',v:(!sub&&inv&&vi)?'R$ '+N0.format(vi/inv):'—',dash:!!(sub||!inv||!vi),s:sub?'VGV não é aberto por parceiro na planilha':(inv&&vi)?`por R$ 1 investido · ${rangeTxt(vms)}`:''},
   ]);
   obs('im-kpis',[`<b>${brl(T)}</b> investidos em ${parts.length} parceiros${parts.length?`; ${esc(parts[0][0])} recebe ${pct(parts[0][1]/T,0)}`:''}.`,(!sub&&inv&&vi)?`Nos meses com VGV de imobiliárias (${rangeTxt(vms)}), cada R$ 1 investido acompanhou R$ ${N0.format(vi/inv)} de VGV vendido pelas parceiras.`:'']);
-  $('#im-leg').innerHTML=IMC.map(([id,c])=>`<span><i style="--c:${c}"></i>${esc(D.cls[id])}</span>`).join('')+`<span><i style="--c:var(--s4)"></i>Demais</span>`;
-  const segsOf=r=>{const out=IMC.map(([id,c])=>({v:tot(r.filter(x=>x.cl===id)),c}));out.push({v:tot(r.filter(x=>!IMC.some(([id])=>x.cl===id))),c:'var(--s4)'});return out;};
+  const showD=rs.some(x=>!IMC.some(([id])=>x.cl===id));
+  $('#im-leg').innerHTML=IMC.map(([id,c])=>`<span><i style="--c:${c}"></i>${esc(D.cls[id])}</span>`).join('')+(showD?`<span><i style="--c:var(--s4)"></i>Demais</span>`:'');
+  const segsOf=r=>{const out=IMC.map(([id,c])=>({v:tot(r.filter(x=>x.cl===id)),c}));if(showD)out.push({v:tot(r.filter(x=>!IMC.some(([id])=>x.cl===id))),c:'var(--s4)'});return out;};
   const idsOf=name=>[...new Set(rs.filter(x=>pn(x)===name).map(x=>x.fo))];
   hbars($('#im-bars'),g.map(([name,v])=>{const ids=idsOf(name);const on=F.fo.length&&ids.every(i=>F.fo.includes(i))&&F.fo.length===ids.length;
-    return {label:name,sub:name===OUT?`${ids.length} fornecedores: brindes, associações, gráficas`:'',total:v,segs:segsOf(rs.filter(x=>pn(x)===name)),val:`${brlC(v)}<small>${pct(v/T,0)}</small>`,on,act:()=>{F.fo=on?[]:ids;changed();}};}));
-  { const md=tot(rs.filter(x=>x.cl===CL_MD)),ou=g.find(x=>x[0]===OUT);obs('p-im-bars',[parts.length>=3?`Os 3 maiores parceiros concentram <b>${pct(parts.slice(0,3).reduce((s,x)=>s+x[1],0)/T,0)}</b> do investimento.`:'',T&&md?`Marketing Digital é ${pct(md/T,0)} do investimento no canal.`:'',ou?`${brlC(ou[1])} da verba foram para fornecedores que não são imobiliárias.`:'']); }
+    return {label:name,sub:name===OUT?`${ids.length} fornecedores fora da lista de imobiliárias`:'',total:v,segs:segsOf(rs.filter(x=>pn(x)===name)),val:`${brlC(v)}<small>${pct(v/T,0)}</small>`,on,act:()=>{F.fo=on?[]:ids;changed();}};}));
+  { const gcl=group(rs,'cl'),ou=g.find(x=>x[0]===OUT);obs('p-im-bars',[parts.length>=3?`Os 3 maiores parceiros concentram <b>${pct(parts.slice(0,3).reduce((s,x)=>s+x[1],0)/T,0)}</b> do investimento.`:'',gcl.length?`${esc(D.cls[gcl[0][0]])} é ${pct(gcl[0][1]/T,0)} do investimento.`:'',ou?`${brlC(ou[1])} foram para fornecedores fora da lista de imobiliárias.`:'']); }
   barChart($('#im-chart'),{mode:'stack',cats:ms.map(m=>({label:MES[m-1]})),series:[{name:'VGV imobiliárias',color:'var(--s1)',vals:ms.map(m=>D.vgvImob[m-1]||0)}],line:{name:'Investimento',color:'var(--s5)',vals:ms.map(m=>tot(rs.filter(r=>r.m===m)))},h:260,noTop:true,aria:'VGV das imobiliárias e investimento',
     tip:i=>{const m=ms[i];const a=D.vgvImob[m-1]||null,bv=tot(rs.filter(r=>r.m===m));return `<div class="tt">${MESL[m-1]}</div>${trow('var(--s1)','VGV imobiliárias',a?brl(a):'não lançado')}${trow('var(--s5)','Investimento',brl(bv))}${a&&bv?`<div class="tn">R$ ${N0.format(a/bv)} de VGV por R$ 1</div>`:''}`;}});
   { const mm=monthly(rs);const pk=ms.slice().sort((a,c)=>mm[c-1]-mm[a-1]).slice(0,2).filter(m=>mm[m-1]>0);const after=ms.filter(m=>m>IMOB_LAST&&m<=CUR),av=after.reduce((s,m)=>s+mm[m-1],0);
     obs('p-im-chart',[pk.length?`Maiores investimentos: ${pk.map(m=>`${MESL[m-1]} (${brlC(mm[m-1])})`).join(' e ')}.`:'',av?`Em ${rangeTxt(after)} foram investidos ${brlC(av)} sem VGV de imobiliárias lançado para medir o retorno.`:'']); }
   heat($('#im-heat'),{months:ms,head:'Parceiro',rows:g.map(([name])=>({label:name,vals:monthly(rs.filter(x=>pn(x)===name))}))});
   { const once=g.filter(([name])=>name!==OUT&&new Set(rs.filter(x=>pn(x)===name).map(x=>x.m)).size===1);obs('p-im-heat',[once.length?`${once.length} parceiros receberam investimento em um único mês.`:'']); }
-  let h=`<thead><tr><th class="l">Parceiro</th><th>Investimento</th><th>%</th><th>Lançamentos</th>${IMC.map(([id])=>`<th>${esc(D.cls[id])}</th>`).join('')}<th>Demais</th><th>Meses</th></tr></thead><tbody>`;
-  h+=g.map(([name,v])=>{const r=rs.filter(x=>pn(x)===name);const sg=segsOf(r);const raz=name===OUT?`${idsOf(name).length} fornecedores`:idsOf(name).map(i=>D.forn[i]).join(', ');return `<tr class="clk" data-id="${esc(name)}"><td class="l"><span class="nm">${esc(name)}</span><span class="sub2">${esc(raz)}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td>${r.length}</td>${sg.map(x=>`<td>${x.v?brlC(x.v):'<span class="dim">—</span>'}</td>`).join('')}<td>${new Set(r.map(x=>x.m)).size}</td></tr>`;}).join('')||'<tr><td class="l dim" colspan="${IMC.length+5}">Sem investimento no recorte.</td></tr>';
+  let h=`<thead><tr><th class="l">Parceiro</th><th>Investimento</th><th>%</th><th>Lançamentos</th>${IMC.map(([id])=>`<th>${esc(D.cls[id])}</th>`).join('')}${showD?'<th>Demais</th>':''}<th>Meses</th></tr></thead><tbody>`;
+  h+=g.map(([name,v])=>{const r=rs.filter(x=>pn(x)===name);const sg=segsOf(r);const raz=name===OUT?`${idsOf(name).length} fornecedores`:idsOf(name).map(i=>D.forn[i]).join(', ');return `<tr class="clk" data-id="${esc(name)}"><td class="l"><span class="nm">${esc(name)}</span><span class="sub2">${esc(raz)}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td>${r.length}</td>${sg.map(x=>`<td>${x.v?brlC(x.v):'<span class="dim">—</span>'}</td>`).join('')}<td>${new Set(r.map(x=>x.m)).size}</td></tr>`;}).join('')||'<tr><td class="l dim" colspan="${IMC.length+(showD?5:4)}">Sem investimento no recorte.</td></tr>';
   h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${rs.length}</td>${segsOf(rs).map(x=>`<td>${brlC(x.v)}</td>`).join('')}<td></td></tr></tfoot>`;
   $('#im-tb').innerHTML=h;
-  bindRows($('#im-tb'),name=>{const ids=idsOf(name);openDrill({anchor:'p-im-tb',key:'imob',id:name,eye:'Parceiro',label:name,where:r=>pn(r)===name,note:name===OUT?'Fornecedores da verba Imobiliária que não são imobiliárias (brindes, associações, gráficas, promotoras).':esc(ids.map(i=>D.forn[i]).join(', ')),apply:()=>{F.fo=ids;changed();}});});
-  obs('p-im-tb',[parts.length?`${parts.filter(([nm])=>tot(rs.filter(x=>pn(x)===nm&&x.cl===CL_MD))>0).length} parceiros receberam verba classificada como Marketing Digital.`:'']);
+  bindRows($('#im-tb'),name=>{const ids=idsOf(name);openDrill({anchor:'p-im-tb',key:'imob',id:name,eye:'Parceiro',label:name,where:r=>pn(r)===name,note:name===OUT?'Fornecedores com classificação de imobiliária que não estão na lista de parceiros (associações, gráficas, promotoras…).':esc(ids.map(i=>D.forn[i]).join(', ')),apply:()=>{F.fo=ids;changed();}});});
+  obs('p-im-tb',[parts.length&&IMC.length?`${parts.filter(([nm])=>tot(rs.filter(x=>pn(x)===nm&&x.cl===IMC[0][0]))>0).length} parceiros têm lançamentos em ${esc(D.cls[IMC[0][0]])}.`:'']);
 };
 
 R.sintta=()=>{
@@ -664,7 +643,7 @@ R.sintta=()=>{
   const met=D.sintta.metas,mt=met.reduce((s,x)=>s+x.meta,0),mrz=met.reduce((s,x)=>s+x.realizado,0);
   kpis($('#si-kpis'),[
     {lead:1,k:'Receita de vendas',v:brlC(rec),s:mr.length?`registrada em ${rangeTxt(mr)}`:'sem receita registrada no período'},
-    {k:'Despesa de marketing',v:brlC(T),s:`verba Sintta · ${N0.format(rs.length)} lançamentos`},
+    {k:'Despesa de marketing',v:brlC(T),s:`verbas ${SINTTA_VB.map(i=>esc(VB[i])).join(' + ')} · ${N0.format(rs.length)} lançamentos`},
     {k:'Despesa ÷ receita',v:rec?pct(T/rec,1):'—',dash:!rec,s:rec?`R$ ${N2.format(T/rec*100)} de marketing a cada R$ 100 vendidos`:''},
     {k:'Metas de captação',v:pct(mrz/mt,0),s:`${brlC(mrz)} de ${brlC(mt)} (Cais e Praia)`,share:mrz/mt},
   ]);
@@ -674,13 +653,13 @@ R.sintta=()=>{
   { const nr=ms.filter(m=>!D.sintta.vendas[m-1]&&tot(rs.filter(r=>r.m===m))>0);obs('p-si-chart',[nr.length?`${nr.length} meses com despesa e sem receita registrada (${rangeTxt(nr)}), somando ${brlC(tot(rs.filter(r=>nr.includes(r.m))))}.`:'']); }
   $('#si-metas').innerHTML=met.map(x=>{const p=x.realizado/x.meta;return `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px"><b style="font-weight:600">${esc(x.nome)}</b><span style="color:${p<.5?'var(--bad)':'var(--good)'};font-weight:600">${pct(p,1)} da meta</span></div><div class="share" style="height:8px"><i style="width:${(Math.min(1,p)*100).toFixed(1)}%;--c:${p<.5?'var(--bad)':'var(--good)'}"></i></div><span class="cnote">Realizado ${brl(x.realizado)} · meta ${brl(x.meta)} · faltam <b>${brlC(x.meta-x.realizado)}</b></span></div>`;}).join('')+'<p class="cnote">Os demais empreendimentos aparecem como “META” na planilha porque não têm meta cadastrada, não porque atingiram.</p>';
   obs('p-si-metas',[met.map(x=>`${esc(x.nome)} em ${pct(x.realizado/x.meta,1)} da meta (faltam ${brlC(x.meta-x.realizado)})`).join('; ')+'.']);
-  const g=group(rs,'sb');
-  let h=`<thead><tr><th class="l">Subclassificação</th><th>Despesa</th><th>%</th><th>Lançamentos</th><th class="l">Maior fornecedor</th><th>Meses</th></tr></thead><tbody>`;
-  h+=g.map(([id,v])=>{const r=rs.filter(x=>x.sb===id);const f=group(r,'fo')[0];return `<tr class="clk" data-id="${id}"><td class="l"><span class="nm">${esc(id>=0?D.subs[id]:'(sem subclassificação)')}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td>${r.length}</td><td class="l">${esc(fname(f[0]))}<span class="sub2">${brlC(f[1])}</span></td><td>${new Set(r.map(x=>x.m)).size}</td></tr>`;}).join('')||'<tr><td class="l dim" colspan="6">Sem despesa no recorte.</td></tr>';
+  const g=group(rs,'cl');
+  let h=`<thead><tr><th class="l">Classificação</th><th>Despesa</th><th>%</th><th>Lançamentos</th><th class="l">Maior fornecedor</th><th>Meses</th></tr></thead><tbody>`;
+  h+=g.map(([id,v])=>{const r=rs.filter(x=>x.cl===id);const f=group(r,'fo')[0];return `<tr class="clk" data-id="${id}"><td class="l"><span class="nm">${esc(D.cls[id])}</span></td><td>${brl(v)}</td><td>${pct(v/T,1)}</td><td>${r.length}</td><td class="l">${esc(fname(f[0]))}<span class="sub2">${brlC(f[1])}</span></td><td>${new Set(r.map(x=>x.m)).size}</td></tr>`;}).join('')||'<tr><td class="l dim" colspan="6">Sem despesa no recorte.</td></tr>';
   h+=`</tbody><tfoot><tr><td class="l">Total</td><td>${brl(T)}</td><td>100%</td><td>${rs.length}</td><td></td><td></td></tr></tfoot>`;
   $('#si-tb').innerHTML=h;
-  bindRows($('#si-tb'),id=>{const i=+id;openDrill({anchor:'p-si-tb',key:'sicl',id:i,eye:'Sintta · subclassificação',label:i>=0?D.subs[i]:'(sem subclassificação)',where:r=>r.sb===i});});
-  obs('p-si-tb',[g.length?`Maior subclassificação: <b>${esc(g[0][0]>=0?D.subs[g[0][0]]:'sem subclassificação')}</b> (${pct(g[0][1]/T,0)}).`:'',g.length>1?`As 3 maiores somam ${pct(g.slice(0,3).reduce((s,x)=>s+x[1],0)/T,0)} da despesa da Sintta no recorte.`:'']);
+  bindRows($('#si-tb'),id=>{const i=+id;openDrill({anchor:'p-si-tb',key:'sicl',id:i,eye:'Sintta · classificação',label:D.cls[i],where:r=>r.cl===i,apply:()=>{F.cl=[i];changed();}});});
+  obs('p-si-tb',[g.length?`Maior classificação: <b>${esc(D.cls[g[0][0]])}</b> (${pct(g[0][1]/T,0)}).`:'',g.length>1?`As 3 maiores somam ${pct(g.slice(0,3).reduce((s,x)=>s+x[1],0)/T,0)} da despesa da Sintta no recorte.`:'']);
 };
 
 const LC={q:'',k:'m',d:1,p:0};
@@ -699,23 +678,24 @@ R.lancamentos=()=>{
 
 R.qualidade=()=>{
   kpis($('#q-kpis'),[
-    {lead:1,k:'Base de lançamentos',v:brl(tot(L)),s:M_.conc&&M_.conc.ok?'bate com o card Total Despesas, os 5 grupos de verba e o custo fixo mensal da aba 1':'<b>diverge da aba 1</b> (ver apontamentos)'},
+    {lead:1,k:'Base de lançamentos',v:brl(tot(L)),s:M_.conc&&M_.conc.ok?'bate com o card Total Despesas da aba 1':'<b>diverge da aba 1</b> (ver apontamentos)'},
     {k:'Lançamentos com valor',v:N0.format(L.length),s:`de ${N0.format(L.length+D.semValor.length)} com classificação`},
     {k:'Sem valor',v:N0.format(D.semValor.length),s:'fora de todos os totais'},
     {k:'Divergências',v:N0.format(QI.length),s:`${QI.filter(q=>q[0]==='C').length} críticas · ${QI.filter(q=>q[0]==='A').length} altas`},
   ]);
-  obs('q-kpis',[M_.conc&&M_.conc.ok?`A base de lançamentos fecha ao centavo com o card Total Despesas (${brl(M_.conc.card)}), com os 5 grupos de verba e com o custo fixo mensal da aba 1.`:`A base soma ${brl(tot(L))} e o card Total Despesas da aba 1 mostra ${M_.conc&&M_.conc.card!=null?brl(M_.conc.card):'—'}: o painel usa a base (aba 7).`,QI.some(q=>q[0]==='C')?`${QI.filter(q=>q[0]==='C').length} ${QI.filter(q=>q[0]==='C').length>1?'divergências críticas precisam':'divergência crítica precisa'} ser ${QI.filter(q=>q[0]==='C').length>1?'corrigidas':'corrigida'} antes de usar a aba 1 em apresentações.`:'']);
+  obs('q-kpis',[M_.conc&&M_.conc.ok?`A base de lançamentos fecha ao centavo com o card Total Despesas da aba 1 (${brl(M_.conc.card)}).`:`A base soma ${brl(tot(L))} e o card Total Despesas da aba 1 mostra ${M_.conc&&M_.conc.card!=null?brl(M_.conc.card):'—'}: o painel usa a base (aba 7).`,QI.some(q=>q[0]==='C')?`${QI.filter(q=>q[0]==='C').length} ${QI.filter(q=>q[0]==='C').length>1?'divergências críticas precisam':'divergência crítica precisa'} ser ${QI.filter(q=>q[0]==='C').length>1?'corrigidas':'corrigida'} antes de usar a aba 1 em apresentações.`:'']);
   const SEV={C:'Crítica',A:'Alta',M:'Média',O:'Observação'};
   $('#q-tb').innerHTML=`<thead><tr><th class="l">Severidade</th><th class="l">Problema</th><th class="l">O que foi encontrado</th><th class="l">O que fazer</th></tr></thead><tbody>${QI.map(q=>`<tr><td class="l"><span class="pill sev-${q[0]}">${SEV[q[0]]}</span></td><td class="l" style="white-space:normal;min-width:180px;max-width:220px"><span class="nm">${esc(q[1])}</span></td><td class="wrap l" style="min-width:320px;max-width:520px;font-size:12.5px">${esc(q[2])}</td><td class="wrap l" style="min-width:200px;max-width:280px;font-size:12.5px;color:var(--ink-2)">${esc(q[3])}</td></tr>`).join('')}</tbody>`;
   obs('p-q-tb',[QI.length?'Prioridade: '+QI.filter(q=>q[0]==='C'||q[0]==='A').slice(0,4).map(q=>esc(q[1]).toLowerCase()).join('; ')+'.':'Nenhum apontamento nesta carga.']);
   $('#q-sv').innerHTML=`<thead><tr><th>Linha</th><th class="l">Mês</th><th class="l">Verba</th><th class="l">Classificação</th><th class="l">Fornecedor</th><th class="l">Descritivo</th><th class="l">Valor na planilha</th></tr></thead><tbody>${D.semValor.map(r=>`<tr><td class="dim">${r.row}</td><td class="l">${MES[r.m-1]}/26</td><td class="l">${esc(r.verba)}</td><td class="l">${esc(r.classif)}</td><td class="l" style="white-space:normal;max-width:220px">${esc(r.forn)}</td><td class="wrap l" style="font-size:12.5px;color:var(--ink-2)">${esc(r.desc)||'<span class="dim">—</span>'}</td><td class="l">${r.raw===''?'<span class="dim">vazio</span>':r.raw.trim()===''?'<span class="pill warn">espaço</span>':`<span class="pill warn">${esc(r.raw)}</span>`}</td></tr>`).join('')}</tbody>`;
   { const md=D.semValor.filter(r=>r.classif===MDN).length;obs('p-q-sv',[`${D.semValor.length} linhas sem valor${md?`; ${md} classificadas como Marketing Digital`:''}.`]); }
   $('#q-notes').innerHTML=`<div><h4>Como os números foram montados</h4><ul>
-    <li><b>Despesas:</b> aba 7, linha a linha. O valor negativo da planilha é lido como despesa. Total de ${brl(tot(L))}${M_.conc&&M_.conc.ok?', igual ao card Total Despesas e à soma dos grupos de verba da aba 1; o custo fixo de cada mês bate com a coluna Desp. Fixa':''}.</li>
-    <li><b>Classificação:</b> colunas “Classificação” e “Sub Classificação” da aba 7 (revisadas pelo Marketing em 30/10/2026), sem reclassificação no painel. Grafias que só mudam em maiúscula ou espaço são unificadas; “relacionamento” entra em “Relacionamento com o cliente” e “Exclusive praia” em “Praia Exclusive”.</li>
+    <li><b>Despesas:</b> aba 7, linha a linha. O valor negativo da planilha é lido como despesa. Total de ${brl(tot(L))}${M_.conc&&M_.conc.ok?', igual ao card Total Despesas da aba 1':''}.</li>
+    <li><b>Verba e classificação:</b> colunas “Verba” e “Classificação” da aba 7, como estão na planilha (revisão de 30/10/2026). Grafias que só mudam em maiúscula ou espaço são unificadas; “relacionamento” entra em “Relacionamento com o cliente” e “Exclusive praia” em “Praia Exclusive”. As colunas Classe Despesa e Sub Classificação não são usadas.</li>
+    <li><b>Sintta:</b> despesa das verbas ${esc(SINTTA_VB.map(i=>VB[i]).join(' e ')||'—')}; receita e metas da aba 5.</li>
     <li><b>Mês:</b> mês da data de competência. ${[REAL_T?cap(REAL_T)+' = realizado':'',CUR_T?CUR_T+' = em curso':'',PROV_T?PROV_T+' = provisão':''].filter(Boolean).join(', ')} (pela data da atualização, ${esc(M_.geradoEm||'')}). Planilha alterada pela última vez em ${esc(M_.dataPlanilha||'—')}.</li>
-    <li><b>Centro de custo:</b> coluna CC Fat. <b>Classe:</b> C.fixo × Outros.</li>
-    <li><b>Imobiliárias:</b> fornecedores da verba Imobiliária. ACNO Consultoria aparece como Hub Nogueira e P e B Administrações como Paulo Miranda, conforme os descritivos dos próprios lançamentos.</li>
+    <li><b>Centro de custo:</b> coluna CC Fat.</li>
+    <li><b>Imobiliárias:</b> lançamentos com classificação de imobiliária (${esc(IMOB_CL.map(i=>D.cls[i]).join(', ')||'—')}), agrupados por fornecedor. ACNO Consultoria aparece como Hub Nogueira e P e B Administrações como Paulo Miranda, conforme os descritivos dos próprios lançamentos.</li>
     <li><b>VGV:</b> aba 1 (2026), aba 2 (2025), aba 6 (empreendimento, ${EMP_T}), aba 4 (imobiliárias, ${IMOB_T}), aba 5 (Sintta). As razões com VGV só usam meses com VGV lançado.</li></ul></div>
     <div><h4>O que esta planilha não traz</h4><ul>
     <li>Despesas de 2025.</li>
@@ -843,7 +823,7 @@ function setPage(id,push=true){
   if(!PAGES[id])id=DEF;ST.page=id;save();if(DR.open&&DR.page!==id)closeDrill();
   Object.entries(PAGES).forEach(([k,s])=>{s.hidden=k!==id;});
   const sec=PAGES[id],gf=$('#gf');
-  if(sec.dataset.f==='none'){gf.hidden=true;}else{gf.hidden=false;sec.querySelector('.gf-slot').appendChild(gf);gf.classList.toggle('p-only',sec.dataset.f==='period');gf.classList.toggle('no-vb',sec.dataset.vb!=null);gf.classList.toggle('no-fx',id==='custo-fixo');}
+  if(sec.dataset.f==='none'){gf.hidden=true;}else{gf.hidden=false;sec.querySelector('.gf-slot').appendChild(gf);gf.classList.toggle('p-only',sec.dataset.f==='period');gf.classList.toggle('no-vb',!!(FIX[id]&&FIX[id].vb));}
   $('#crumbMod').textContent=sec.dataset.mod;$('#crumbPage').textContent=sec.dataset.title;
   $$('.sub a,.fly a,.brand').forEach(a=>{if(a.dataset.page===id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   $$('.mod').forEach(m=>{const own=!!m.querySelector(`.sub a[data-page="${id}"]`);m.classList.toggle('active',own);if(own)openMod(m,true);});

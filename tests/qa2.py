@@ -1,8 +1,8 @@
 import asyncio, json, sys, base64, pathlib
 from playwright.async_api import async_playwright
 
-PAGES = ["visao","vgv","por-verba","centro-custo","classificacao","fornecedores","custo-fixo","vendas-emp","orcamento","imobiliarias","sintta","lancamentos","qualidade"]
-DRILL = {"vgv":"g-tb","por-verba":"vb-tb","centro-custo":"cc-tb","classificacao":"cl-tb","fornecedores":"fo-tb","custo-fixo":"cf-tb","vendas-emp":"ve-tb","orcamento":"or-tb","imobiliarias":"im-tb","sintta":"si-tb"}
+PAGES = ["visao","vgv","por-verba","centro-custo","classificacao","fornecedores","vendas-emp","orcamento","imobiliarias","sintta","lancamentos","qualidade"]
+DRILL = {"vgv":"g-tb","por-verba":"vb-tb","centro-custo":"cc-tb","classificacao":"cl-tb","fornecedores":"fo-tb","vendas-emp":"ve-tb","orcamento":"or-tb","imobiliarias":"im-tb","sintta":"si-tb"}
 URL = "file:///home/claude/due/fin/index.html"
 LIB = pathlib.Path("/home/claude/due/fin/libs/node_modules")
 OUT = pathlib.Path("/home/claude/due/fin/qa_out"); OUT.mkdir(exist_ok=True)

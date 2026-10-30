@@ -301,7 +301,9 @@ table.det{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
 .cross tr.pick{cursor:pointer}
 .cross tr.pick:hover td{background:var(--card-2)}
 .cross tfoot td{font-weight:600;border-top:1px solid var(--line-2);border-bottom:0}
+.cross td:first-child{white-space:normal}
 .cross .fname{display:inline-flex;align-items:center;gap:7px}
+.cross .fname i{flex:none}
 .cross .fname i{width:9px;height:9px;border-radius:3px;background:var(--c)}
 .cross .pct{color:var(--muted);font-size:11.5px;display:block}
 .stack100{display:flex;height:10px;gap:2px;border-radius:4px;overflow:hidden}
@@ -484,8 +486,8 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
           <span class="lbl">Despesas</span>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         </button>
-        <div class="sub"><a href="#por-verba" data-page="por-verba">Por Verba</a><a href="#centro-custo" data-page="centro-custo">Centro de Custo</a><a href="#classificacao" data-page="classificacao">Classificação</a><a href="#fornecedores" data-page="fornecedores">Fornecedores</a><a href="#custo-fixo" data-page="custo-fixo">Custo Fixo</a></div>
-        <div class="fly" role="menu"><h4>Despesas</h4><a href="#por-verba" data-page="por-verba">Por Verba</a><a href="#centro-custo" data-page="centro-custo">Centro de Custo</a><a href="#classificacao" data-page="classificacao">Classificação</a><a href="#fornecedores" data-page="fornecedores">Fornecedores</a><a href="#custo-fixo" data-page="custo-fixo">Custo Fixo</a></div>
+        <div class="sub"><a href="#por-verba" data-page="por-verba">Por Verba</a><a href="#centro-custo" data-page="centro-custo">Centro de Custo</a><a href="#classificacao" data-page="classificacao">Classificação</a><a href="#fornecedores" data-page="fornecedores">Fornecedores</a></div>
+        <div class="fly" role="menu"><h4>Despesas</h4><a href="#por-verba" data-page="por-verba">Por Verba</a><a href="#centro-custo" data-page="centro-custo">Centro de Custo</a><a href="#classificacao" data-page="classificacao">Classificação</a><a href="#fornecedores" data-page="fornecedores">Fornecedores</a></div>
       </div>
 
       <div class="mod" data-mod="Empreendimentos" data-first="vendas-emp">
@@ -557,7 +559,6 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
               </div>
             </div>
             <div class="fg f-full f-vb"><span class="lab">Verba</span><div class="chips" id="f-vb"></div></div>
-            <div class="fg f-full f-fx"><span class="lab">Classe</span><div class="chips" id="f-fx"></div></div>
           </div>
           <div class="frow frow2">
             <div class="fg wide f-full"><span class="lab" id="lab-cc">Centro de custo</span><div class="dd" id="dd-cc"></div></div>
@@ -582,7 +583,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
           <div class="grid g-2-1">
             <section class="panel" id="p-v-evo">
               <div class="ph"><div><h2>Evolução mensal<span class="dot">.</span></h2><p id="v-evo-sub">Despesa por mês e verba</p></div>
-                <div class="seg" role="group" aria-label="Quebrar por" id="v-evo-seg"><button type="button" data-d="vb" aria-pressed="true">Verba</button><button type="button" data-d="fx" aria-pressed="false">Classe</button><button type="button" data-d="vgv" aria-pressed="false">× VGV</button></div></div>
+                <div class="seg" role="group" aria-label="Quebrar por" id="v-evo-seg"><button type="button" data-d="vb" aria-pressed="true">Verba</button><button type="button" data-d="vgv" aria-pressed="false">× VGV</button></div></div>
               <div class="legend" id="v-evo-leg"></div>
               <div class="chart" id="v-evo"></div>
             </section>
@@ -596,7 +597,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
             <section class="panel" id="p-v-cc"><div class="ph"><div><h2>Centros de custo<span class="dot">.</span></h2><p>CC de faturamento (onde a NF foi lançada) · clique para filtrar</p></div></div><div class="bars" id="v-cc"></div></section>
           </div>
           <section class="panel" id="p-v-md">
-            <div class="ph"><div><h2>Marketing digital consolidado<span class="dot">.</span></h2><p>A classificação Marketing Digital aparece em várias verbas; aqui ela é somada, independente do filtro de classificação</p></div></div>
+            <div class="ph"><div><h2>Marketing e mídia digital<span class="dot">.</span></h2><p>Verbas Marketing Digital e Mídia Digital somadas, independente do filtro de verba, abertas por classificação</p></div></div>
             <div class="grid g-2-1" style="gap:20px">
               <div><div class="legend" id="v-md-leg"></div><div class="chart" id="v-md" style="min-height:200px"></div></div>
               <div id="v-md-cross"></div>
@@ -623,7 +624,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
 
         <!-- ===== DESPESAS › POR VERBA ===== -->
         <section class="page" id="pg-por-verba" data-mod="Despesas" data-title="Por Verba" data-f="full" hidden>
-          <div class="page-head"><h1>Por Verba</h1><p>Os cinco grupos de verba do controle: Marketing, Trade, Imobiliária, Relacionamento e Sintta.</p></div>
+          <div class="page-head"><h1>Por Verba</h1><p>As verbas da coluna “Verba” da aba 7.</p></div>
           <div class="gf-slot"></div>
           <section class="panel" id="p-vb-heat"><div class="ph"><div><h2>Verba × mês<span class="dot">.</span></h2><p>R$ mil · cor mais escura = maior valor · meses de provisão (nov–dez) esmaecidos</p></div></div><div class="scroll"><table class="heat" id="vb-heat"></table></div></section>
           <section class="panel" id="p-vb-tb"><div class="ph"><div><h2>Detalhe por verba<span class="dot">.</span></h2><p>Clique numa verba para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="vb-tb"></table></div></section>
@@ -640,7 +641,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
 
         <!-- ===== DESPESAS › CLASSIFICAÇÃO ===== -->
         <section class="page" id="pg-classificacao" data-mod="Despesas" data-title="Classificação" data-f="full" hidden>
-          <div class="page-head"><h1>Classificação</h1><p>38 classificações de despesa, já com as variações de grafia unificadas (ex.: “Despesas de deslocamento” somada a “Despesas com deslocamento”).</p></div>
+          <div class="page-head"><h1>Classificação</h1><p>Coluna “Classificação” da aba 7 (<span id="m-ncl">—</span> classificações), com as variações de maiúscula e espaço unificadas.</p></div>
           <div class="gf-slot"></div>
           <div class="grid g-2-1">
             <section class="panel" id="p-cl-heat"><div class="ph"><div><h2>Classificação × mês<span class="dot">.</span></h2><p id="cl-sub">R$ mil · ordenado pelo total</p></div><div class="seg" role="group" aria-label="Linhas" id="cl-seg"><button type="button" data-n="15" aria-pressed="true">15 maiores</button><button type="button" data-n="99" aria-pressed="false">Todas</button></div></div><div class="scroll"><table class="heat" id="cl-heat"></table></div></section>
@@ -663,13 +664,6 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
         </section>
 
         <!-- ===== DESPESAS › CUSTO FIXO ===== -->
-        <section class="page" id="pg-custo-fixo" data-mod="Despesas" data-title="Custo Fixo" data-f="full" hidden>
-          <div class="page-head"><h1>Custo Fixo</h1><p>Lançamentos com Classe Despesa = C.fixo: contratos recorrentes (agências, marca, site, outdoors, locações, sistemas). É a base que segue rodando mesmo sem campanha e a primeira pauta de renegociação.</p></div>
-          <div class="gf-slot"></div>
-          <section class="kpis k4" id="cf-kpis"></section>
-          <section class="panel" id="p-cf-heat"><div class="ph"><div><h2>Contratos fixos × mês<span class="dot">.</span></h2><p>Fornecedor por mês · R$ mil · meses de provisão esmaecidos · clique para filtrar</p></div></div><div class="scroll"><table class="heat" id="cf-heat"></table></div></section>
-          <section class="panel" id="p-cf-tb"><div class="ph"><div><h2>Detalhe por fornecedor<span class="dot">.</span></h2><p>Contratos fixos no recorte · clique para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="cf-tb"></table></div></section>
-        </section>
 
         <!-- ===== EMPREENDIMENTOS › VENDAS ===== -->
         <section class="page" id="pg-vendas-emp" data-mod="Empreendimentos" data-title="Vendas e Estoque" data-f="period" hidden>
@@ -695,28 +689,28 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
         </section>
 
         <!-- ===== PARCEIROS › IMOBILIÁRIAS ===== -->
-        <section class="page" id="pg-imobiliarias" data-mod="Parceiros" data-title="Imobiliárias" data-f="full" data-vb="2" hidden>
-          <div class="page-head"><h1>Imobiliárias</h1><p>Investimento da verba Imobiliária por parceiro, lido direto da base (coluna Fornecedor). Esta tela considera só a verba Imobiliária; os demais filtros continuam valendo.</p></div>
+        <section class="page" id="pg-imobiliarias" data-mod="Parceiros" data-title="Imobiliárias" data-f="full" data-fix="imob" hidden>
+          <div class="page-head"><h1>Imobiliárias</h1><p>Lançamentos da aba 7 com classificação de imobiliária (<span id="m-imobcl">—</span>), por parceiro (coluna Fornecedor). Os demais filtros continuam valendo.</p></div>
           <div class="gf-slot"></div>
           <section class="kpis" id="im-kpis"></section>
           <div class="grid g-1-1">
-            <section class="panel" id="p-im-bars"><div class="ph"><div><h2>Ranking de parceiros<span class="dot">.</span></h2><p>Barra dividida pelo tipo de ação · clique para filtrar</p></div></div><div class="legend" id="im-leg"></div><div class="bars" id="im-bars"></div></section>
-            <section class="panel" id="p-im-chart"><div class="ph"><div><h2>VGV das imobiliárias × investimento<span class="dot">.</span></h2><p>VGV de vendas das imobiliárias (aba 4, lançado só até <span id="m-imobm">—</span>) e investimento da verba no mês</p></div></div><div class="legend"><span><i style="--c:var(--s1)"></i>VGV imobiliárias</span><span><i class="ln" style="--c:var(--s5)"></i>Investimento (eixo direito)</span></div><div class="chart" id="im-chart"></div></section>
+            <section class="panel" id="p-im-bars"><div class="ph"><div><h2>Ranking de parceiros<span class="dot">.</span></h2><p>Barra dividida por classificação · clique para filtrar</p></div></div><div class="legend" id="im-leg"></div><div class="bars" id="im-bars"></div></section>
+            <section class="panel" id="p-im-chart"><div class="ph"><div><h2>VGV das imobiliárias × investimento<span class="dot">.</span></h2><p>VGV de vendas das imobiliárias (aba 4, lançado só até <span id="m-imobm">—</span>) e investimento do mês</p></div></div><div class="legend"><span><i style="--c:var(--s1)"></i>VGV imobiliárias</span><span><i class="ln" style="--c:var(--s5)"></i>Investimento (eixo direito)</span></div><div class="chart" id="im-chart"></div></section>
           </div>
           <section class="panel" id="p-im-heat"><div class="ph"><div><h2>Parceiro × mês<span class="dot">.</span></h2><p>R$ mil</p></div></div><div class="scroll"><table class="heat" id="im-heat"></table></div></section>
-          <section class="panel" id="p-im-tb"><div class="ph"><div><h2>Detalhe por parceiro<span class="dot">.</span></h2><p>Investimento por tipo de ação · clique para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="im-tb"></table></div></section>
+          <section class="panel" id="p-im-tb"><div class="ph"><div><h2>Detalhe por parceiro<span class="dot">.</span></h2><p>Investimento por classificação · clique para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="im-tb"></table></div></section>
         </section>
 
         <!-- ===== PARCEIROS › SINTTA ===== -->
-        <section class="page" id="pg-sintta" data-mod="Parceiros" data-title="Sintta" data-f="full" data-vb="4" hidden>
-          <div class="page-head"><h1>Sintta</h1><p>Receita de vendas registrada na aba 5 e despesa da verba Sintta lida da base de lançamentos.</p></div>
+        <section class="page" id="pg-sintta" data-mod="Parceiros" data-title="Sintta" data-f="full" data-fix="sintta" hidden>
+          <div class="page-head"><h1>Sintta</h1><p>Receita de vendas registrada na aba 5 e despesa das verbas <span id="m-sinttavb">—</span> da aba 7.</p></div>
           <div class="gf-slot"></div>
           <section class="kpis k4" id="si-kpis"></section>
           <div class="grid g-2-1">
             <section class="panel" id="p-si-chart"><div class="ph"><div><h2>Receita × despesa<span class="dot">.</span></h2><p>R$ por mês</p></div></div><div class="legend"><span><i style="--c:var(--s5)"></i>Receita de vendas</span><span><i style="--c:var(--gold)"></i>Despesa de marketing</span></div><div class="chart" id="si-chart"></div></section>
             <section class="panel" id="p-si-metas"><div class="ph"><div><h2>Metas de captação<span class="dot">.</span></h2><p>Só Cais e Praia têm meta cadastrada</p></div></div><div id="si-metas"></div></section>
           </div>
-          <section class="panel" id="p-si-tb"><div class="ph"><div><h2>Detalhe por classificação<span class="dot">.</span></h2><p>Para onde foi a despesa da verba Sintta · clique para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="si-tb" style="min-width:640px"></table></div></section>
+          <section class="panel" id="p-si-tb"><div class="ph"><div><h2>Detalhe por classificação<span class="dot">.</span></h2><p>Para onde foi a despesa · clique para ver as despesas cadastradas</p></div></div><div class="scroll"><table class="det" id="si-tb" style="min-width:640px"></table></div></section>
         </section>
 
         <!-- ===== AUDITORIA › LANÇAMENTOS ===== -->

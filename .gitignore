@@ -1,0 +1,10 @@
+# dados da DUE nunca entram no repositório (repo público)
+*.xlsx
+data.json
+index.html
+dados/
+qa_out/
+*.png
+!assets/*.png
+libs/node_modules/
+__pycache__/

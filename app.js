@@ -20,6 +20,7 @@ const QI=D.qi||[];const MDN='Marketing Digital';
 const nrm=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const vbIdx=names=>VB.map((n,i)=>[n,i]).filter(([n])=>names.includes(nrm(n))).map(x=>x[1]);
 const SINTTA_VB=vbIdx(['sintta','operacao']);const DIG_VB=vbIdx(['marketing digital','midia digital']);
+const vbList=ix=>ix.length>1?`das verbas ${ix.map(i=>VB[i]).join(' e ')}`:ix.length?`da verba ${VB[ix[0]]}`:'—';
 const IMOB_CL=D.cls.map((n,i)=>[n,i]).filter(([n])=>/imobili/.test(nrm(n))).map(x=>x[1]);
 const FIX={imobiliarias:{vb:false,f:r=>IMOB_CL.includes(r.cl),txt:['Classificação',(IMOB_CL.map(i=>D.cls[i]).join(', ')||'—')+' (fixa nesta tela)']},
            sintta:{vb:true,f:r=>SINTTA_VB.includes(r.vb),txt:['Verba',(SINTTA_VB.map(i=>VB[i]).join(' + ')||'—')+' (fixa nesta tela)']}};
@@ -153,7 +154,7 @@ function bindRows(tb,fn){tb.querySelectorAll('tr.clk').forEach(tr=>{tr.tabIndex=
 
 /* ---------- textos que dependem da carga ---------- */
 (()=>{const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('m-data',M_.dataPlanilha||'—');set('m-ncl',N0.format(D.cls.length));set('m-imobcl',IMOB_CL.map(i=>D.cls[i]).join(', ')||'nenhuma');set('m-sinttavb',SINTTA_VB.map(i=>VB[i]).join(' e ')||'—');set('m-empt',EMP_T);set('m-empt2',EMP_T);set('m-empm',EMP_LAST?MESL[EMP_LAST-1].toLowerCase()+'/26':'—');set('m-imobm',IMOB_LAST?MESL[IMOB_LAST-1].toLowerCase():'—');set('m-nlanc',N0.format(L.length));set('m-ccdv',N0.format(M_.ccdVazio??0));set('m-ccdd',N0.format(M_.ccdDif??0));
+  set('m-data',M_.dataPlanilha||'—');set('m-ncl',N0.format(D.cls.length));set('m-imobcl',IMOB_CL.map(i=>D.cls[i]).join(', ')||'nenhuma');set('m-sinttavb',vbList(SINTTA_VB));set('m-digvb',vbList(DIG_VB));set('m-empt',EMP_T);set('m-empt2',EMP_T);set('m-empm',EMP_LAST?MESL[EMP_LAST-1].toLowerCase()+'/26':'—');set('m-imobm',IMOB_LAST?MESL[IMOB_LAST-1].toLowerCase():'—');set('m-nlanc',N0.format(L.length));set('m-ccdv',N0.format(M_.ccdVazio??0));set('m-ccdd',N0.format(M_.ccdDif??0));
   const vm=[1,2,3,4,5,6,7,8,9,10,11,12].filter(VGV_OK);
   set('m-period',`Despesas Jan–Dez/26${REAL_T?` (realizado até ${MES[REAL-1].toLowerCase()})`:''} · VGV ${vm.length?span_(vm[0],vm[vm.length-1]).replace(/^./,c=>c.toUpperCase())+'/26':'—'}`);
   const nl=[1,2,3,4,5,6,7,8,9,10,11,12].filter(m=>m<=Math.min(CUR,12)&&!VGV_OK(m));
@@ -352,7 +353,7 @@ R.visao=()=>{
     const gm=monthly(rs);let pk=ms[0];ms.forEach(m=>{if(gm[m-1]>gm[pk-1])pk=m;});if(ms.length>1)b.push(`Mês de maior despesa: <b>${MESL[pk-1]}</b>, ${brlC(gm[pk-1])}${pk>REAL?' (inclui valores provisionados)':''}.`);
     const gf=group(rs,'fo');if(gf.length>3){const t3=gf.slice(0,3);b.push(`Os 3 maiores fornecedores somam <b>${pct(t3.reduce((s,x)=>s+x[1],0)/T,0)}</b>: ${t3.map(x=>esc(fname(x[0]))).join(', ')}.`);}
     if(prov>0)b.push(`${cap(PROV_T)} já ${plv(PROV_T,'carrega','carregam')} <b>${brlC(prov)}</b> provisionados, sem VGV previsto na planilha.`);
-    const md=tot(rows({skip:'vb',where:r=>DIG_VB.includes(r.vb)}));if(md&&b.length<6)b.push(`Marketing e mídia digital somam <b>${brlC(md)}</b> (verbas ${DIG_VB.map(i=>esc(VB[i])).join(' e ')}; veja o quadro abaixo).`);
+    const md=tot(rows({skip:'vb',where:r=>DIG_VB.includes(r.vb)}));if(md&&b.length<6)b.push(`Marketing e mídia digital somam <b>${brlC(md)}</b> (${esc(vbList(DIG_VB))}; veja o quadro abaixo).`);
   }else b.push('Nenhum lançamento no recorte. Ajuste ou limpe os filtros.');
   $('#v-read').innerHTML=b.slice(0,6).map(x=>`<li>${x}</li>`).join('');
 
@@ -643,7 +644,7 @@ R.sintta=()=>{
   const met=D.sintta.metas,mt=met.reduce((s,x)=>s+x.meta,0),mrz=met.reduce((s,x)=>s+x.realizado,0);
   kpis($('#si-kpis'),[
     {lead:1,k:'Receita de vendas',v:brlC(rec),s:mr.length?`registrada em ${rangeTxt(mr)}`:'sem receita registrada no período'},
-    {k:'Despesa de marketing',v:brlC(T),s:`verbas ${SINTTA_VB.map(i=>esc(VB[i])).join(' + ')} · ${N0.format(rs.length)} lançamentos`},
+    {k:'Despesa de marketing',v:brlC(T),s:`${esc(vbList(SINTTA_VB))} · ${N0.format(rs.length)} lançamentos`},
     {k:'Despesa ÷ receita',v:rec?pct(T/rec,1):'—',dash:!rec,s:rec?`R$ ${N2.format(T/rec*100)} de marketing a cada R$ 100 vendidos`:''},
     {k:'Metas de captação',v:pct(mrz/mt,0),s:`${brlC(mrz)} de ${brlC(mt)} (Cais e Praia)`,share:mrz/mt},
   ]);
@@ -692,7 +693,7 @@ R.qualidade=()=>{
   $('#q-notes').innerHTML=`<div><h4>Como os números foram montados</h4><ul>
     <li><b>Despesas:</b> aba 7, linha a linha. O valor negativo da planilha é lido como despesa. Total de ${brl(tot(L))}${M_.conc&&M_.conc.ok?', igual ao card Total Despesas da aba 1':''}.</li>
     <li><b>Verba e classificação:</b> colunas “Verba” e “Classificação” da aba 7, como estão na planilha (revisão de 30/10/2026). Grafias que só mudam em maiúscula ou espaço são unificadas; “relacionamento” entra em “Relacionamento com o cliente” e “Exclusive praia” em “Praia Exclusive”. As colunas Classe Despesa e Sub Classificação não são usadas.</li>
-    <li><b>Sintta:</b> despesa das verbas ${esc(SINTTA_VB.map(i=>VB[i]).join(' e ')||'—')}; receita e metas da aba 5.</li>
+    <li><b>Sintta:</b> despesa ${esc(vbList(SINTTA_VB))}; receita e metas da aba 5.</li>
     <li><b>Mês:</b> mês da data de competência. ${[REAL_T?cap(REAL_T)+' = realizado':'',CUR_T?CUR_T+' = em curso':'',PROV_T?PROV_T+' = provisão':''].filter(Boolean).join(', ')} (pela data da atualização, ${esc(M_.geradoEm||'')}). Planilha alterada pela última vez em ${esc(M_.dataPlanilha||'—')}.</li>
     <li><b>Centro de custo:</b> coluna CC Fat.</li>
     <li><b>Imobiliárias:</b> lançamentos com classificação de imobiliária (${esc(IMOB_CL.map(i=>D.cls[i]).join(', ')||'—')}), agrupados por fornecedor. ACNO Consultoria aparece como Hub Nogueira e P e B Administrações como Paulo Miranda, conforme os descritivos dos próprios lançamentos.</li>

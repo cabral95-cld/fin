@@ -336,7 +336,8 @@ def parse(xlsx, data_txt, hoje=None):
     if sem:
         sv = sum(x.get("v", 0) for x in sem)
         Q("A", "Lançamentos sem verba ou classificação", f"{len(sem)} lançamento{'s' if len(sem)>1 else ''} ({brl(sv)}) com Verba ou Classificação vazia na aba 7 (linhas {', '.join(str(x['row']) for x in sem)}). No painel aparecem como “{SEM_VB}” / “{SEM_CL}”.", "Preencher as colunas nessas linhas.")
-    nolaunch = [i for i in range(12) if i + 1 <= CUR and base_m[i] > 0 and not vgv_ok[i]]
+    # mês fechado sem VGV válido, ou mês em curso com VGV lançado mas suspeito (< 5% da mediana)
+    nolaunch = [i for i in range(12) if base_m[i] > 0 and ((i + 1 <= REAL and not vgv_ok[i]) or (i + 1 == CUR and vgv26[i] and vgv26[i] < 0.05 * med))]
     if nolaunch:
         partes = [f"{MESL[i]} ({brl(vgv26[i])})" if vgv26[i] else f"{MESL[i]} (vazio)" for i in nolaunch]
         Q("C", "VGV de " + lista([MESL[i] for i in nolaunch]) + " não lançado",

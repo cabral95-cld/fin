@@ -67,7 +67,7 @@ async def main():
             res["clip_err"] = str(e)[:200]
         # relatório na visão com filtro
         await pg.evaluate("location.hash='visao'"); await pg.wait_for_timeout(300)
-        await pg.click('#gf [data-p="1-9"]'); await pg.wait_for_timeout(200)
+        await pg.click('#pp-real'); await pg.wait_for_timeout(200)
         await pg.click('#f-vb .chip[data-i="4"]'); await pg.wait_for_timeout(300)
         await pg.click('#gf .js-rep'); await pg.wait_for_timeout(600)
         res["rp_open"] = await pg.evaluate("!document.getElementById('rp').hidden")

@@ -1,6 +1,6 @@
 <title>DUE Controle Financeiro</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<script>try{var __t=JSON.parse(localStorage.getItem('duefin')||'{}').theme;if(__t==='dark'||__t==='light')document.documentElement.dataset.theme=__t}catch(e){}</script>
+<script>try{var __t=JSON.parse(localStorage.getItem('duefin3')||'{}').theme;if(__t==='dark'||__t==='light')document.documentElement.dataset.theme=__t}catch(e){}</script>
 <style id="fontcss">/*__FONTS__*/</style>
 <style>
 /* Layout: casca do sistema DUE Marketing — rail petrol colapsável à esquerda (logo ⇄ símbolo + módulos),
@@ -597,7 +597,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
             <section class="panel" id="p-v-cc"><div class="ph"><div><h2>Centros de custo<span class="dot">.</span></h2><p>CC de faturamento (onde a NF foi lançada) · clique para filtrar</p></div></div><div class="bars" id="v-cc"></div></section>
           </div>
           <section class="panel" id="p-v-md">
-            <div class="ph"><div><h2>Marketing e mídia digital<span class="dot">.</span></h2><p>Verbas Marketing Digital e Mídia Digital somadas, independente do filtro de verba, abertas por classificação</p></div></div>
+            <div class="ph"><div><h2>Marketing e mídia digital<span class="dot">.</span></h2><p>Despesa <span id="m-digvb">—</span>, independente do filtro de verba, aberta por classificação</p></div></div>
             <div class="grid g-2-1" style="gap:20px">
               <div><div class="legend" id="v-md-leg"></div><div class="chart" id="v-md" style="min-height:200px"></div></div>
               <div id="v-md-cross"></div>
@@ -703,7 +703,7 @@ tr.clk:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
 
         <!-- ===== PARCEIROS › SINTTA ===== -->
         <section class="page" id="pg-sintta" data-mod="Parceiros" data-title="Sintta" data-f="full" data-fix="sintta" hidden>
-          <div class="page-head"><h1>Sintta</h1><p>Receita de vendas registrada na aba 5 e despesa das verbas <span id="m-sinttavb">—</span> da aba 7.</p></div>
+          <div class="page-head"><h1>Sintta</h1><p>Receita de vendas registrada na aba 5 e despesa <span id="m-sinttavb">—</span> na aba 7.</p></div>
           <div class="gf-slot"></div>
           <section class="kpis k4" id="si-kpis"></section>
           <div class="grid g-2-1">

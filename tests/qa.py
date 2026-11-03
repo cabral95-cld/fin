@@ -32,7 +32,7 @@ async def main():
         await pg.wait_for_timeout(300)
         res["filtro_imob"] = await pg.evaluate("document.getElementById('recorte').innerText")
         await pg.click('#reset'); await pg.wait_for_timeout(200)
-        await pg.click('#gf [data-p="1-9"]'); await pg.wait_for_timeout(300)
+        await pg.click('#pp-real'); await pg.wait_for_timeout(300)
         res["filtro_jan_set"] = await pg.evaluate("document.getElementById('recorte').innerText")
         res["kpis_jan_set"] = await pg.evaluate("document.getElementById('v-kpis').innerText.replace(/\\n/g,' | ')")
         # dropdown CC: só Solina
